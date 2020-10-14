@@ -133,6 +133,7 @@ out %>%
 #code from: https://cran.r-project.org/web/packages/shinySIR/vignettes/Vignette.html
 install.packages("shinySIR")
 library(shinySIR)
+#can apply simple ODEs to this, doesn't need to be SIR
 
 mySIRS <- function(t, y, parms) {
   with(as.list(c(y, parms)),{
@@ -157,3 +158,42 @@ run_shiny(model = "SIRS (w/out demography)",
           parm_names = c("Transmission rate", "Recovery rate", "Loss of immunity"),
           parm_min = c(beta = 1e-5, gamma = 1/21, delta = 1/365),
           parm_max = c(beta = 9e-5, gamma = 1 , delta = 1))
+
+default_models()
+
+#####################################################
+#system of ODE Equations
+#code from http://rstudio-pubs-static.s3.amazonaws.com/32888_197d1a1896534397b67fb04e0d4899ae.html
+library(deSolve)
+library(ggplot2)
+install.packages("reshape2")
+library(reshape2)
+
+# time sequence 
+time <- seq(0, 50, by = 0.01)
+
+# parameters: a named vector
+parameters <- c(r = 2, k = 0.5, e = 0.1, d = 1)
+
+# initial condition: a named vector
+state <- c(V = 1, P = 3)
+
+# R function to calculate the value of the derivatives at each time value
+# Use the names of the variables as defined in the vectors above
+lotkaVolterra <- function(t, state, parameters){
+  with(as.list(c(state, parameters)), {
+    dV = r * V - k * V * P
+    dP = e * k * V * P - d * P
+    return(list(c(dV, dP)))
+  })
+}
+## Integration with 'ode'
+out <- ode(y = state, times = time, func = lotkaVolterra, parms = parameters)
+
+## Ploting
+out.df = as.data.frame(out) # required by ggplot: data object must be a data frame
+library(reshape2)
+out.m = melt(out.df, id.vars='time') # this makes plotting easier by puting all variables in a single column
+
+p <- ggplot(out.m, aes(time, value, color = variable)) + geom_point()
+print(p)
