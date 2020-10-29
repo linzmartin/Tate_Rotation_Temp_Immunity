@@ -84,8 +84,8 @@ get_model_names()
 # "sharpeschoolfull_1981" and  "sharpeschoolhigh_1981" - don't work
 # "modifiedgaussian_2006" - doesn't work
 # "weibull_1995"
-
-
+?get_model_names()
+??rTPC
 #BtU only but w/ individ points
 ggplot(BtUInjected, aes(Temp, ddCT2)) +
   geom_point() +
@@ -142,12 +142,13 @@ preds
 ######################
 
 #mod3 works! - use BtuInjected, Gaussian model
+#rate = rmax.exp(-0.5.(abs(temp - topt)/a)^2)
 startgaus3<-get_start_vals(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "gaussian_1987")
 gausmod3<-nls.multstart::nls_multstart(ddCT2~gaussian_1987(temp=Temp,rmax,topt,a),
                                        data=BtUInjected,
                                        iter = c(4,4,4),
-                                       start_lower=startgaus2 -10,
-                                       start_upper=startgaus2+10,
+                                       start_lower=startgaus3 -10,
+                                       start_upper=startgaus3+10,
                                        lower=get_lower_lims(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "gaussian_1987"),
                                        upper=get_upper_lims(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "gaussian_1987"),
                                        supp_errors = "Y",
@@ -198,4 +199,193 @@ ggplot(preds4) +
        y="Fold change",
        x="Temperature")
 
-plot(preds3$.fitted~preds4$.fitted)
+#plot(preds3$.fitted~preds4$.fitted)
+
+
+#########################################################
+#try Weibull
+#weibull_1995
+# rate = ((a.(((c-1)/c)^((1-c)/c)).((((temp-topt)/b)+(((c-1)/c)^(1/c)))^(c-1)).(exp(-((((temp-topt)/b)+(((c-1)/c)^(1/c)))^c)+((c-1)/c)))))
+?weibull_1995()
+startW<-get_start_vals(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "weibull_1995")
+weibullmod<-nls.multstart::nls_multstart(ddCT2~weibull_1995(temp=Temp,a,topt,b,c),
+                                       data=BtUInjected,
+                                       iter = c(4),
+                                       start_lower=startW -10,
+                                       start_upper=startW+10,
+                                       lower=get_lower_lims(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "weibull_1995"),
+                                       upper=get_upper_lims(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "weibull_1995"),
+                                       supp_errors = "Y",
+                                       convergence_count = FALSE)
+
+##error in parameters
+
+#model fit
+summary(gausmod3)
+info3<-glance(gausmod3)
+
+#######################################
+#try flinn_1991() 
+#rate = 1 / (1 + a + b.temp + c.temp^2)
+#a controls height of curve
+#b controls slope of initial increase
+#c controls position and steepness of decline of curve
+
+?flinn_1991()
+
+startF<-get_start_vals(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "flinn_1991")
+flinnmod<-nls.multstart::nls_multstart(ddCT2~flinn_1991(temp=Temp,a,b,c),
+                                         data=BtUInjected,
+                                         iter = c(4),
+                                         start_lower=startF -10,
+                                         start_upper=startF +10,
+                                         lower=get_lower_lims(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "flinn_1991"),
+                                         upper=get_upper_lims(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "flinn_1991"),
+                                         supp_errors = "Y",
+                                         convergence_count = FALSE)
+summary(flinnmod)
+infoflinn<-glance(flinnmod)
+infoflinn
+
+
+params<-tidy(flinnmod)
+
+CI <- confint2(flinnmod) %>%
+  data.frame() %>%
+  rename(., conf.low = X2.5.., conf.high = X97.5..)
+
+# bind params and confidence intervals
+params <- bind_cols(params, CI)
+select(params, -c(statistic, p.value))
+
+predsflinn <- augment(flinnmod)
+predsflinn
+
+ggplot(predsflinn) +
+  geom_point(aes(Temp, ddCT2), BtUInjected) +
+  geom_line(aes(Temp, .fitted), col = 'blue',) +
+  theme_bw() +
+  labs(title="Immune Gene Expression in BtU Infected T. castaneum",
+       subtitle="Flinn model for thermal performance curve",
+       y="Fold change",
+       x="Temperature")
+#slightly better AIC than Gaussian
+###################################################
+
+#boatman_2017(temp, rmax, tmin, tmax, a, b)
+# rate = rmax.(sin(pi.((temp - tmin)/(tmax - tmin))^a))^b
+?boatman_2017
+
+startboat<-get_start_vals(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "boatman_2017")
+boatmod<-nls.multstart::nls_multstart(ddCT2~boatman_2017(temp=Temp,rmax,tmin,tmax,a,b),
+                                       data=BtUInjected,
+                                       iter = c(4),
+                                       start_lower=startboat -10,
+                                       start_upper=startboat +10,
+                                       lower=get_lower_lims(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "boatman_2017"),
+                                       upper=get_upper_lims(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "boatman_2017"),
+                                       supp_errors = "Y",
+                                       convergence_count = FALSE)
+
+#doesn't work
+
+########################################
+#multiple curves at once
+# https://github.com/padpadpadpad/nls.multstart
+
+fits <- Chlorella_TRC %>%
+  group_by(., flux, growth.temp, process, curve_id) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(ln.rate ~ schoolfield_high(lnc, E, Eh, Th, temp = K, Tc = 20),
+                                                data = .x,
+                                                iter = 1000,
+                                                start_lower = c(lnc=-1000, E=0.1, Eh=0.5, Th=285),
+                                                start_upper = c(lnc=1000, E=2, Eh=10, Th=330),
+                                                supp_errors = 'Y',
+                                                na.action = na.omit,
+                                                lower = c(lnc = -10, E = 0, Eh = 0, Th = 0))))
+startgausall<-get_start_vals(Gene_data$Temp,Gene_data$ddCT2, model_name = "gaussian_1987")
+fits <- Gene_data %>%
+  group_by(., Treatment) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(ddCT2~gaussian_1987(temp=Temp,rmax,topt,a),
+                                                data=.x,
+                                                iter = 1000,
+                                                start_lower=startgausall -10,
+                                                start_upper=startgausall+10,
+                                                lower=get_lower_lims(Gene_data$Temp,Gene_data$ddCT2, model_name = "gaussian_1987"),
+                                                upper=get_upper_lims(Gene_data$Temp,Gene_data$ddCT2, model_name = "gaussian_1987"),
+                                                supp_errors = "Y",
+                                                convergence_count = FALSE)))
+# look at output object - should show a nls fit column & data tibble column by grouping
+select(fits, data, fit) 
+#check the first fit to see if it worked
+summary(fits$fit[[1]])
+glance(fits$fit[[1]])
+
+## clean up:
+# get summary
+info <- fits %>%
+  mutate(summary = map(fit, glance)) %>%
+  unnest(summary)
+
+# get params
+params <- fits %>%
+  mutate(., p = map(fit, tidy)) %>%
+  unnest(p)
+
+# get confidence intervals
+CI <- fits %>%
+  mutate(., cis = map(fit, confint2),
+         cis = map(cis, data.frame)) %>%
+  unnest(cis) %>%
+  rename(., conf.low = X2.5.., conf.high = X97.5..) %>%
+  group_by(., Treatment) %>%
+  mutate(., term = c('rmax', 'topt', 'a')) %>%
+  ungroup() %>%
+  select(., -data, -fit)
+
+# merge parameters and CI estimates
+params <- merge(params, CI, by = intersect(names(params), names(CI)))
+
+# get predictions
+preds <- fits %>%
+  mutate(., p = map(fit, augment)) %>%
+  unnest(p)
+
+#check models
+select(info, Treatment, logLik, AIC, BIC, deviance, df.residual)
+
+# new data frame of predictions - need more data for smooth curve
+new_preds <- Gene_data %>%
+  do(., data.frame(Temp = seq(min(.$Temp), max(.$Temp), length.out = 150), stringsAsFactors = FALSE))
+
+# max and min for each curve
+max_min <- group_by(Gene_data, Treatment) %>%
+  summarise(., min_Temp = min(Temp), max_Temp = max(Temp)) %>%
+  ungroup()
+#> `summarise()` ungrouping output (override with `.groups` argument)
+
+# create new predictions
+preds2 <- fits %>%
+  mutate(., p = map(fit, augment, newdata = new_preds)) %>%
+  unnest(p) %>%
+  merge(., max_min, by = 'Treatment') %>%
+  group_by(., Treatment) %>%
+  filter(., Temp > unique(min_Temp) & Temp < unique(max_Temp)) %>%
+  rename(., ddCT2 = .fitted) %>%
+  ungroup()
+
+
+# plot
+ggplot() +
+  geom_point(aes(Temp, ddCT2), size = 2, Gene_data) +
+  geom_line(aes(Temp, ddCT2, group = Treatment), alpha = 0.5, preds2) +
+  facet_wrap(~ Treatment, labeller = labeller(.multi_line = FALSE)) +
+  scale_colour_manual(values = c('green4')) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = c(0.9, 0.15)) +
+  labs(title="Immune Gene Expression in T. castaneum",
+       subtitle="Gaussian thermal performance curves",
+       y="Fold change (ddCT2)",
+       x="Temperature (ºC)")
