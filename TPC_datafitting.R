@@ -293,17 +293,6 @@ boatmod<-nls.multstart::nls_multstart(ddCT2~boatman_2017(temp=Temp,rmax,tmin,tma
 #multiple curves at once
 # https://github.com/padpadpadpad/nls.multstart
 
-fits <- Chlorella_TRC %>%
-  group_by(., flux, growth.temp, process, curve_id) %>%
-  nest() %>%
-  mutate(fit = purrr::map(data, ~ nls_multstart(ln.rate ~ schoolfield_high(lnc, E, Eh, Th, temp = K, Tc = 20),
-                                                data = .x,
-                                                iter = 1000,
-                                                start_lower = c(lnc=-1000, E=0.1, Eh=0.5, Th=285),
-                                                start_upper = c(lnc=1000, E=2, Eh=10, Th=330),
-                                                supp_errors = 'Y',
-                                                na.action = na.omit,
-                                                lower = c(lnc = -10, E = 0, Eh = 0, Th = 0))))
 startgausall<-get_start_vals(Gene_data$Temp,Gene_data$ddCT2, model_name = "gaussian_1987")
 fits <- Gene_data %>%
   group_by(., Treatment) %>%
@@ -389,3 +378,112 @@ ggplot() +
        subtitle="Gaussian thermal performance curves",
        y="Fold change (ddCT2)",
        x="Temperature (ºC)")
+
+
+#########################################################
+
+
+plot(x=BtUInjected$Temp,y=BtUInjected$ddCT2)
+plot(NonInjected$Temp, NonInjected$ddCT2)
+
+linearmod<-lm(ddCT2~Temp, data=BtUInjected)
+summary(linearmod)
+
+plot(x=BtUInjected$Temp,y=BtUInjected$ddCT2)
+abline(linearmod)
+
+AIC(linearmod)
+#AIC = 385
+
+##################################
+
+#Group for mean fold change
+
+startgausall<-get_start_vals(meanfoldchange$Temp,meanfoldchange$ddCT2, model_name = "gaussian_1987")
+fits <- meanfoldchange %>%
+  group_by(., Treatment) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(ddCT2~gaussian_1987(temp=Temp,rmax,topt,a),
+                                                data=.x,
+                                                iter = 1000,
+                                                start_lower=startgausall -10,
+                                                start_upper=startgausall+10,
+                                                lower=get_lower_lims(meanfoldchange$Temp,meanfoldchange$ddCT2, model_name = "gaussian_1987"),
+                                                upper=get_upper_lims(meanfoldchange$Temp,meanfoldchange$ddCT2, model_name = "gaussian_1987"),
+                                                supp_errors = "Y",
+                                                convergence_count = FALSE)))
+# look at output object - should show a nls fit column & data tibble column by grouping
+select(fits, data, fit) 
+#check the first fit to see if it worked
+summary(fits$fit[[1]])
+glance(fits$fit[[1]])
+
+## clean up:
+# get summary
+info <- fits %>%
+  mutate(summary = map(fit, glance)) %>%
+  unnest(summary)
+
+# get params
+params <- fits %>%
+  mutate(., p = map(fit, tidy)) %>%
+  unnest(p)
+
+# get confidence intervals
+CI <- fits %>%
+  mutate(., cis = map(fit, confint2),
+         cis = map(cis, data.frame)) %>%
+  unnest(cis) %>%
+  rename(., conf.low = X2.5.., conf.high = X97.5..) %>%
+  group_by(., Treatment) %>%
+  mutate(., term = c('rmax', 'topt', 'a')) %>%
+  ungroup() %>%
+  select(., -data, -fit)
+
+# merge parameters and CI estimates
+params <- merge(params, CI, by = intersect(names(params), names(CI)))
+
+# get predictions
+preds <- fits %>%
+  mutate(., p = map(fit, augment)) %>%
+  unnest(p)
+
+#check models
+select(info, Treatment, logLik, AIC, BIC, deviance, df.residual)
+
+# new data frame of predictions - need more data for smooth curve
+new_preds <- meanfoldchange %>%
+  do(., data.frame(Temp = seq(min(.$Temp), max(.$Temp), length.out = 150), stringsAsFactors = FALSE))
+
+# max and min for each curve
+max_min <- group_by(meanfoldchange, Treatment) %>%
+  summarise(., min_Temp = min(Temp), max_Temp = max(Temp)) %>%
+  ungroup()
+#> `summarise()` ungrouping output (override with `.groups` argument)
+
+# create new predictions
+preds2 <- fits %>%
+  mutate(., p = map(fit, augment, newdata = new_preds)) %>%
+  unnest(p) %>%
+  merge(., max_min, by = 'Treatment') %>%
+  group_by(., Treatment) %>%
+  filter(., Temp > unique(min_Temp) & Temp < unique(max_Temp)) %>%
+  rename(., ddCT2 = .fitted) %>%
+  ungroup()
+
+
+# plot
+ggplot() +
+  geom_point(aes(Temp, ddCT2), size = 2, meanfoldchange) +
+  geom_line(aes(Temp, ddCT2, group = Treatment), alpha = 0.5, preds2) +
+  facet_wrap(~ Treatment, labeller = labeller(.multi_line = FALSE)) +
+  scale_colour_manual(values = c('green4')) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = c(0.9, 0.15)) +
+  labs(title="Immune Gene Expression in T. castaneum",
+       subtitle="Gaussian thermal performance curves",
+       y="Mean Fold change (ddCT2)",
+       x="Temperature (ºC)")
+
+
+#########################################################

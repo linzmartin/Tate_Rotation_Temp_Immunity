@@ -1,39 +1,42 @@
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(deSolve)
+
 Bt_Tcast_within_host_infection <- function (t, x, params) {
   #state variables
   H <- x[1]
-  #L <- x[2]
+  I <- x[2]
   B <- x[3]
-  X <- x[4]
-  #state <-c(H, L, B, X)
-  state <-c(H, B, X)
+  state <-c(H, I, B)
   
   #parameters
-  M <- params["M"]
+  p <- params["p"]
   d <- params["d"]
-  Toll <- params["Toll"]
-  IMD <- params["IMD"]
-  fB <- params["fB"]
   c <- params["c"]
   beta <- params["beta"]
-  y <- params["y"]
-  s <- params["s"]
+  theta <- params["theta"]
+  gamma <- params["gamma"]
+  alpha <- params["alpha"]
+  w <- params["w"]
+  z <- params["z"]
+  r <- params["r"]
+  K <- params["K"]
 
   #model equations
-  dHdt <- M*s-M*d*H-beta*H*X
-  #dLdt <- beta*H*X
-  dBdt <- M*fB-M*Toll*IMD*c*B
-  dXdt <- y*M*fB-M*Toll*IMD*c*X
-  
-  #single vector as list
-  #dzdt <- c(dHdt,dLdt,dBdt,dXdt)
-  dzdt <- c(dHdt,dBdt,dXdt)
-  list(dzdt)
+  dHdt <- beta*B*exp(-H)-p*H-I*(1-H)+exp(-theta*H)
+  dIdt <- gamma*(1-I/K) + alpha*B*(1-I/K)-I*(B*w + z)
+  dBdt <- r*B*(1-B/K)-B*(d+c*I)
+  dndt <- c(dHdt,dIdt,dBdt)
+  list(dndt)
 }
 
 
-parms <-c(s=10,M=10,d=10,Toll=15,IMD=19,fB=74,c=1,beta=110,y=50) #initial conditions
-times <- seq(from=0,to=30/365,by=1/365/4)
-xstart<-c(H=1000,B=5e10,X=5e10)
+parms <-c(gamma=500,K=1,alpha=500,beta=510,p=0.1,theta=0.4,w=1,z=1,r=200,d=0.2,c=0.8) #initial conditions
+times <- seq(from=0,to=60/365,by=1/365/4)
+xstart<-c(H=1,I=50,B=1)
+
+
 
 ode(
   func=Bt_Tcast_within_host_infection,
@@ -45,4 +48,27 @@ ode(
 
 out
 
+#plot results:
+out %>%
+  gather(variable,value,-time) %>%
+  ggplot(aes(x=time,y=value,color=variable))+
+  #geom_line(size=2)+
+  geom_point() +
+  geom_line(size=1)+
+  theme_classic()+
+  labs(x='time (yr)',y='number of individuals')
 
+newout<- out %>% 
+  gather(variable,value,-time)
+newout<-as.data.frame(newout)
+is.data.frame(newout)
+
+  ggplot(aes(x=time,y=B,color=B))+
+  #geom_line(size=2)+
+  geom_point() +
+  geom_line(size=1)+
+  theme_classic()+
+  labs(x='time (yr)',y='number of individuals')
+
+ggplot(aes(data=newout,x=time,y=variable))
+  ggplot(aes(data=newout,x=time,y=B,color=B))
