@@ -24,19 +24,28 @@ Bt_Tcast_within_host_infection <- function (t, x, params) {
   K <- params["K"]
 
   #model equations
-  dHdt <- beta*B*exp(-H)-p*H-I*(1-H)+exp(-theta*H)
-  dIdt <- gamma*(1-I/K) + alpha*B*(1-I/K)-I*(B*w + z)
+  #dHdt <- (beta*B*exp(-H))-(p*H)-(I*(1-H))+exp(-theta*H) #H not limited to 1
+  #dHdt <- (beta*B*(1-exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H) #this works
+  #dHdt <- (beta*B*(-exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H) #H becomes negative
+  #dHdt <- (beta*B*(exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H) #doesn't work at all
+  
+  #dHdt <- (beta*B*(1-exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H) 
+  dHdt <- (beta*B*exp(-H))-(p*H)-(I*(1-H))+exp(-theta*H)
+  
+  #dIdt <- gamma*(1-I/(1-exp(-K))) + alpha*B*(1-I/(1-exp(-K)))-I*(B*w + z)
+  #dIdt <- gamma*(1-I/(K*1/B)) + alpha*B*(1-I/(K*1/B))-I*(B*w + z) #works but is harsh
+  #dIdt <- gamma*(1-I/(K)) + alpha*B*(1-I/(K-B))-I*(B*w + z)
+  #dIdt <- gamma*(1-I/K) + alpha*B*(1-I/K)-I*(B*w + z) #original 
+  
+  dIdt <- gamma + (alpha*(1-B/K))-(I*(B*w + z)) #this might work??
+  
   dBdt <- r*B*(1-B/K)-B*(d+c*I)
   dndt <- c(dHdt,dIdt,dBdt)
   list(dndt)
 }
-
-
-parms <-c(gamma=500,K=1,alpha=500,beta=510,p=0.1,theta=0.4,w=1,z=1,r=200,d=0.2,c=0.8) #initial conditions
+parms <-c(gamma=500,K=1000,alpha=500,beta=510,p=0.2,theta=0.8,w=1,z=1,r=200,d=0.2,c=0.8) #initial conditions
 times <- seq(from=0,to=60/365,by=1/365/4)
-xstart<-c(H=1,I=50,B=1)
-
-
+xstart<-c(H=1,I=50,B=100)
 
 ode(
   func=Bt_Tcast_within_host_infection,
@@ -45,6 +54,27 @@ ode(
   parms=parms
 ) %>% 
   as.data.frame() -> out
+
+op <- par(fig=c(0,1,0,1),mfrow=c(2,2),
+          mar=c(3,3,2,2),mgp=c(2,1,0))
+plot(H~time,data=out,type="l",main="H",xlab="time",ylab="dH/dt")
+plot(I~time,data=out,type="l",main="I",xlab="time",ylab="dI/dt")
+plot(B~time,data=out,type="l",main="B",xlab="time",ylab="dB/dt")
+mtext(outer=TRUE,line=-1,"Within host model")
+par(op)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 out
 
@@ -57,18 +87,40 @@ out %>%
   geom_line(size=1)+
   theme_classic()+
   labs(x='time (yr)',y='number of individuals')
-
+##
+#or graph by:
 newout<- out %>% 
   gather(variable,value,-time)
 newout<-as.data.frame(newout)
-is.data.frame(newout)
+#is.data.frame(newout)
 
-  ggplot(aes(x=time,y=B,color=B))+
-  #geom_line(size=2)+
-  geom_point() +
-  geom_line(size=1)+
-  theme_classic()+
-  labs(x='time (yr)',y='number of individuals')
+#individual graphs:
+H<-filter(newout,variable=="H")
+B<-filter(newout,variable=="B")
+I<-filter(newout,variable=="I")
 
-ggplot(aes(data=newout,x=time,y=variable))
-  ggplot(aes(data=newout,x=time,y=B,color=B))
+ggplot(H, aes(x=time,y=value)) +
+  geom_point()
+ggplot(B, aes(x=time,y=value)) +
+  geom_point()
+ggplot(I, aes(x=time,y=value)) +
+  geom_point()
+  
+#################################
+op <- par(fig=c(0,1,0,1),mfrow=c(2,2),
+            mar=c(3,3,2,2),mgp=c(2,1,0))
+plot(H~time,data=out,type="l",main="H",xlab="time",ylab="dH/dt")
+plot(I~time,data=out,type="l",main="I",xlab="time",ylab="dI/dt")
+plot(B~time,data=out,type="l",main="B",xlab="time",ylab="dB/dt")
+mtext(outer=TRUE,line=-1,"Within host model")
+par(op)
+
+#######################
+#graph the three together
+#https://kinglab.eeb.lsa.umich.edu/480/nls/de.html#solving_odes_in_r
+out %>%
+    gather(variable,value,-time) %>%
+    ggplot(aes(x=time,y=value,color=variable))+geom_line()+
+    facet_wrap(~variable,scales="free_y",ncol=1)+
+    scale_y_log10()+
+    guides(color=FALSE)+theme_bw()
