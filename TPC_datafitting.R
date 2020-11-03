@@ -103,8 +103,8 @@ ggplot(Btumean, aes(Temp, ddCT2), shape=factor(Treatment)) +
 
 
 ######
-?modifiedgaussian_2006() #rate = rmax.exp(-0.5.(abs(temp - topt)/a)^b)
-?gaussian_1987() #rate = rmax.exp(-0.5.(abs(temp - topt)/a)^2)
+#?modifiedgaussian_2006() #rate = rmax.exp(-0.5.(abs(temp - topt)/a)^b)
+#?gaussian_1987() #rate = rmax.exp(-0.5.(abs(temp - topt)/a)^2)
 startgaus1<-get_start_vals(Btumean$Temp,Btumean$ddCT2, model_name = "modifiedgaussian_2006")
 gausmod1<-nls.multstart::nls_multstart(ddCT2~modifiedgaussian_2006(temp=Temp,rmax,topt,a,b),
                                        data=Btumean,
@@ -206,7 +206,7 @@ ggplot(preds4) +
 #try Weibull
 #weibull_1995
 # rate = ((a.(((c-1)/c)^((1-c)/c)).((((temp-topt)/b)+(((c-1)/c)^(1/c)))^(c-1)).(exp(-((((temp-topt)/b)+(((c-1)/c)^(1/c)))^c)+((c-1)/c)))))
-?weibull_1995()
+#?weibull_1995()
 startW<-get_start_vals(BtUInjected$Temp,BtUInjected$ddCT2, model_name = "weibull_1995")
 weibullmod<-nls.multstart::nls_multstart(ddCT2~weibull_1995(temp=Temp,a,topt,b,c),
                                        data=BtUInjected,
@@ -290,7 +290,7 @@ boatmod<-nls.multstart::nls_multstart(ddCT2~boatman_2017(temp=Temp,rmax,tmin,tma
 #doesn't work
 
 ########################################
-#multiple curves at once
+#multiple curves at once w/ individ data points
 # https://github.com/padpadpadpad/nls.multstart
 
 startgausall<-get_start_vals(Gene_data$Temp,Gene_data$ddCT2, model_name = "gaussian_1987")

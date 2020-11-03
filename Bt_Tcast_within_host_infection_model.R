@@ -15,41 +15,39 @@ Bt_Tcast_within_host_infection <- function (t, x, params) {
   d <- params["d"]
   c <- params["c"]
   beta <- params["beta"]
-  theta <- params["theta"]
   gamma <- params["gamma"]
   alpha <- params["alpha"]
   w <- params["w"]
   z <- params["z"]
   r <- params["r"]
-  K <- params["K"]
+  psi <- params["psi"]
+  KH <- params["KH"]
+  KB <- params["KB"]
+  KI <- params["KI"]
+  m <- params["m"]
+  mu <- params["mu"]
+  sigma1 <- params["sigma1"]
 
   #model equations
-  #dHdt <- (beta*B*exp(-H))-(p*H)-(I*(1-H))+exp(-theta*H) #H not limited to 1
-  #dHdt <- (beta*B*(1-exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H) #this works
-  #dHdt <- (beta*B*(-exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H) #H becomes negative
-  #dHdt <- (beta*B*(exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H) #doesn't work at all
+  #dHdt <- (beta*B*(1-exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H) original
+  #dHdt <- (beta*B*(1-exp(H/B)))-(p*H)-(I*(1-H))+exp(-theta*H) 
+  dHdt <- (psi*H*(KH-H))-(beta*B*(1-exp(H)))-(p*H)-(I*m*(1-H))
+  #dHdt <- (psi*H*(1-KH))-(beta*B*(1-exp(H)))-(p*H)-(I*m*(1-H))
   
+  #dIdt <- gamma*(1-I/K) + alpha*B*(1-I/K)-I*(B*w + z) #original
+  #dIdt <- (gamma) + (alpha*B*(1-I/K))-(I*(B*w + z))
+  dIdt <- (gamma*I*(KI-1)) + (alpha*I*(KI-1))*(KB/(1+exp(-mu*(B-sigma1))))-(I*(B*w + z)) #this might work??
   
-  #dHdt <- (beta*B*(1-exp(H)))-(p*H)-(I*(1-H))+exp(-theta*H)
-  dHdt <- (beta*B*(1-exp(H/B)))-(p*H)-(I*(1-H))+exp(-theta*H) 
-  
-  #dIdt <- gamma*(1-I/(1-exp(-K))) + alpha*B*(1-I/(1-exp(-K)))-I*(B*w + z)
-  #dIdt <- gamma*(1-I/(K*1/B)) + alpha*B*(1-I/(K*1/B))-I*(B*w + z) #works but is harsh
-  #dIdt <- gamma*(1-I/(K)) + alpha*B*(1-I/(K-B))-I*(B*w + z)
-  #dIdt <- gamma*(1-I/K) + alpha*B*(1-I/K)-I*(B*w + z) #original 
-  
-  dIdt <- gamma + (alpha*B*(1-I/K))-(I*(B*w + z)) #this might work??
-  
-  dBdt <- r*B*(1-B/K)-B*(d+c*I)
+  dBdt <- r*B*(1-B/KB)-B*(d+c*I)
   dndt <- c(dHdt,dIdt,dBdt)
   list(dndt)
 }
-parms <-c(gamma=500,K=2e5,alpha=50,
-          beta=510,p=0.2,theta=0.8,
-          w=1,z=10,r=200,d=2,c=0.5) #initial conditions
+parms <-c(psi=20, KH=10, beta=51,p=0.2,
+          gamma=5,KI=20,alpha=5,KB=30,mu=1,sigma1=10, w=1,z=10,
+          r=20,d=2,c=0.5) #initial conditions
 #times <- seq(from=0,to=3,by=1/365/4)
-#times <- seq(from=0,to=3/365,by=1/365/4)
-times <- seq(from=0,to=60/365,by=1/365/4)
+times <- seq(from=0,to=3/365,by=1/365/4)
+#times <- seq(from=0,to=60/365,by=1/365/4)
 #times <- seq(from=0, to=3, by=1/3/12)
 
 times
