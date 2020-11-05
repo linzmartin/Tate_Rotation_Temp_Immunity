@@ -1,4 +1,7 @@
 #Immune Gene Expression and Temperature
+#this is code for testing fits of different models, practice w/ TPCs
+###########
+#install packages
 library(readxl)
 library(ggplot2)
 

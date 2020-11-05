@@ -1,6 +1,10 @@
-#below: fitting multiple curves to BtuInjected 
-
 #Immune Gene Expression and Temperature
+#Model selection process 
+#tested models w/ BtuInjected treatment group
+#plotting multiple models to data (all on one graph)
+
+##################################################
+#load packages
 library(readxl)
 library(ggplot2)
 
@@ -23,7 +27,6 @@ Gene_data <- read_xlsx("Gene_temp_data.xlsx", sheet="Gene_Data_Modified") #Emily
 # lookinga at ddCT2 (fold change) vs. temp vs. treatment
 # this is condensed data from Emily's work - find in my box folder
 ##################################
-
 #Plot the data to view the general trends for Treatment across temperatures
 ggplot(Gene_data, aes(Temp, ddCT2, shape=factor(Treatment))) +
   geom_point(aes(colour = factor(Treatment)),size=4) +
@@ -41,6 +44,7 @@ ggplot(Gene_data, aes(Temp, ddCT2, shape=factor(Treatment))) +
 # filter Gene_data to separate by Treatment and by Temperature
 Gene_data<-na.omit(Gene_data) #remove NAs first
 
+##
 BtUInjected <- filter(Gene_data, Treatment == "BtU")
 BtUInjected
 NonInjected <- filter(Gene_data, Treatment == "non-injected")
@@ -48,6 +52,8 @@ HeatKilled <- filter(Gene_data, Treatment == "heat killed")
 #Temp24 <- filter(Gene_data, Temp == 24)
 #Temp24Btu <- filter(Gene_data, Temp == 24, Treatment == "BtU")
 
+##########
+#if you want means only (instead of individual data points) use this:
 meanfoldchange<-
   aggregate(x=Gene_data$ddCT2,
             by=list(Gene_data$Temp,Gene_data$Treatment),
@@ -67,6 +73,7 @@ ggplot(meanfoldchange, aes(Temp, ddCT2, shape=factor(Treatment))) +
        title = 'Immune Gene Expression Across Temperatures') +
   geom_smooth(mapping=aes(x=Temp,y=ddCT2)) 
 #######################
+#Fit Gaussian model to Gene data
 startgausall<-get_start_vals(Gene_data$Temp,Gene_data$ddCT2, model_name = "gaussian_1987")
 fits <- Gene_data %>%
   group_by(., Treatment) %>%
@@ -154,105 +161,13 @@ ggplot() +
        x="Temperature (ºC)") +
   scale_x_continuous(breaks=c(20,24,30,34), position="bottom")
 
-#############################################
 
+#########################
+###########################
+#############################
+#FITTING MULTIPLE MODELS AT ONCE:
 
-# load in data
-#data("chlorella_tpc")
-#d <- chlorella_tpc
-Gene_data <- read_xlsx("Gene_temp_data.xlsx", sheet="Gene_Data_Modified") #Emily's data
-
-
-# when scaling up our code to fit hundreds of models, its nice to have a progress bar
-# edit nls_multstart to allow for a progress bar
-nls_multstart_progress <- function(formula, data = parent.frame(), iter, start_lower, 
-                                   start_upper, supp_errors = c("Y", "N"), convergence_count = 100, 
-                                   control, modelweights, ...){
-  if(!is.null(pb)){
-    pb$tick()
-  }
-  nls_multstart(formula = formula, data = data, iter = iter, start_lower = start_lower, 
-                start_upper = start_upper, supp_errors = supp_errors, convergence_count = convergence_count, 
-                control = control, modelweights = modelweights, ...)
-}
-
-# start progress bar and estimate time it will take
-number_of_models <- 2
-number_of_curves <- length(unique(Gene_data$Treatment))
-
-# setup progress bar
-pb <- progress::progress_bar$new(total = number_of_curves*number_of_models,
-                                 clear = FALSE,
-                                 format ="[:bar] :percent :elapsedfull")
-
-# fit two chosen model formulation in rTPC
-fits <- Gene_data %>%
-  group_by(., Treatment) %>%
-  nest() %>%
-  mutate(fit = purrr::map
-Gene_fits <- Gene_data %>%
-  group_by(., Treatment) %>%
-  nest() %>%
-  mutate(gaussianfit = purrr::map(data, ~nls_multstart(ddCT2~gaussian_1987(temp = Temp, rmax,topt,a),
-                                                      data = .x,
-                                                      iter = 1000,
-                                                      start_lower = get_start_vals(.x$Temp, .x$ddCT2, model_name = 'gaussian_1987') - 10,
-                                                      start_upper = get_start_vals(.x$Temp, .x$ddCT2, model_name = 'gaussian_1987') + 10,
-                                                      lower = get_lower_lims(.x$Temp, .x$ddCT2, model_name = 'gaussian_1987'),
-                                                      upper = get_upper_lims(.x$Temp, .x$ddCT2, model_name = 'gaussian_1987'),
-                                                      supp_errors = 'Y',
-                                                      convergence_count = FALSE)))
-
-
-new_preds <- Gene_data %>%
-  do(., data.frame(Temp = seq(min(.$Temp), max(.$Temp), length.out = 150), stringsAsFactors = FALSE))
-# create new list column of for high resolution data
-d_preds <- mutate(Gene_fits, new_data = map(data, ~tibble(temp = seq(min(.x$Temp), max(.x$Temp), length.out = 66)))) %>%
-  # get rid of original data column
-  select(., -data) %>%
-  # stack models into a single column, with an id column for model_name
-  pivot_longer(., names_to = 'model_name', values_to = 'fit', c(gaussianfit)) %>%
-  # create new list column containing the predictions
-  # this uses both fit and new_data list columns
-  mutate(preds = map(Gene_fits, new_data, ~augment(.x, newdata = .y))) %>%
-  # select only the columns we want to keep
-  select(Treatment, Temp, model_name, preds) %>%
-  # unlist the preds list column
-  unnest(preds)
-
-glimpse(d_preds)
-
-
-###################################################
-
-Gene_data <- read_xlsx("Gene_temp_data.xlsx", sheet="Gene_Data_Modified") #Emily's data
-# lookinga at ddCT2 (fold change) vs. temp vs. treatment
-# this is condensed data from Emily's work - find in my box folder
-##################################
-
-#Plot the data to view the general trends for Treatment across temperatures
-ggplot(Gene_data, aes(Temp, ddCT2, shape=factor(Treatment))) +
-  geom_point(aes(colour = factor(Treatment)),size=4) +
-  geom_point(colour = "grey90",size=1.5) +
-  labs(title="Immune Gene Expression in T. castaneum",
-       y="Relative Expression (ddCT2)",
-       x="Temperature (ºC)") +
-  scale_x_discrete(limits=c(20,24,30,34), position="bottom")
-
-ggplot(Gene_data, aes(Temp, ddCT2, shape=factor(Treatment))) +
-  geom_point(aes(colour = factor(Treatment)),size=4) +
-  geom_smooth(mapping=aes(x=Temp,y=ddCT2)) +
-  geom_point(colour = "grey90",size=1.5)
-
-# filter Gene_data to separate by Treatment and by Temperature
-Gene_data<-na.omit(Gene_data) #remove NAs first
-
-BtUInjected <- filter(Gene_data, Treatment == "BtU")
-BtUInjected
-NonInjected <- filter(Gene_data, Treatment == "non-injected")
-HeatKilled <- filter(Gene_data, Treatment == "heat killed")
-
-
+#Run diff models on BtUInjected group
 Gene_fits <- BtUInjected %>%
   group_by(., Treatment) %>%
   nest() %>%
@@ -319,51 +234,15 @@ Gene_fits <- BtUInjected %>%
                                           upper = get_upper_lims(.x$Temp, .x$ddCT2, model_name = 'spain_1982'),
                                           supp_errors = 'Y', convergence_count = FALSE)))
 
-glimpse(select(Gene_fits, 1:7))
-Gene_fits$gaussian[[1]]
+#glimpse(select(Gene_fits, 1:7))
+#Gene_fits$gaussian[[1]]
 
-
-
-# stack models
-d_stack <- select(Gene_fits, -data) %>%
-  pivot_longer(., names_to = 'model_name', values_to = 'fit', flinn:spain)
-
-# get parameters using tidy
-params <- d_stack %>%
-  mutate(., est = map(fit, tidy)) %>%
-  select(-fit) %>%
-  unnest(est)
-
-# get predictions using augment
-newdata <- tibble(temp = seq(min(BtUInjected$Temp), max(BtUInjected$Temp), length.out = 70))
-d_preds <- d_stack %>%
-  mutate(., preds = map(fit, augment, newdata = newdata)) %>%
-  select(-fit) %>%
-  unnest(preds)
 
 label_facets_num <- function(string){
   len <- length(string)
   string = paste('(', 1:len, ') ', string, sep = '')
   return(string)
 }
-head(BtUInjected)
-# plot
-ggplot(d_preds, aes(temp, ddCT2)) +
-  geom_point(aes(Temp, ddCT2), BtUInjected) +
-  geom_line(aes(temp, .fitted), col = 'blue') +
-  facet_wrap(~model_name, labeller = labeller(.multi_line = FALSE), scales = 'free', ncol = 4) +
-  theme_bw(base_size = 12) +
-  theme(legend.position = 'none',
-        strip.text = element_text(hjust = 0),
-        strip.background = element_blank()) +
-  labs(x = 'Temperature (ºC)',
-       y = 'ddCT2',
-       title = 'Fits of models available in rTPC') +
-  geom_hline(aes(yintercept = 0), linetype = 2)
-
-
-
-#############################
 
 
 ## clean up:
@@ -372,15 +251,15 @@ d_stack <- select(Gene_fits, -data) %>%
   pivot_longer(., names_to = 'model_name', values_to = 'fit', flinn:spain)
 d_stack
 # get parameters using tidy
-params <- d_stack %>%
-  mutate(., est = map(fit, tidy)) %>%
-  select(-fit) %>%
-  unnest(est)
+#params <- d_stack %>%
+ # mutate(., est = map(fit, tidy)) %>%
+  #select(-fit) %>%
+  #unnest(est)
 
-preds <- d_stack %>%
-  mutate(., p = map(fit, augment)) %>%
-  unnest(p)
-select(info, Treatment, logLik, AIC, BIC, deviance, df.residual)
+#preds <- d_stack %>%
+ # mutate(., p = map(fit, augment)) %>%
+#  unnest(p)
+#select(info, Treatment, logLik, AIC, BIC, deviance, df.residual)
 
 new_preds <- BtUInjected %>%
   do(., data.frame(Temp = seq(min(.$Temp), max(.$Temp), length.out = 150), stringsAsFactors = FALSE))
@@ -390,6 +269,7 @@ max_min <- group_by(BtUInjected, Treatment) %>%
   summarise(., min_Temp = min(Temp), max_Temp = max(Temp)) %>%
   ungroup()
 
+#MAKE PREDS W NEW TEMPS:
 preds2 <- d_stack %>%
   mutate(., p = map(fit, augment, newdata = new_preds)) %>%
   unnest(p) %>%
@@ -423,7 +303,9 @@ ggplot() +
        title = 'Respiration across temperatures') +
   geom_hline(aes(yintercept = 0), linetype = 2) +
   scale_color_brewer(type = 'qual', palette = 2)
- ##
+
+################################################
+#Summary of different model fits (e.g. AIC, BIC)
 #install.packages("MuMIn")
 library(MuMIn)  
 d_ic <- d_stack %>%
