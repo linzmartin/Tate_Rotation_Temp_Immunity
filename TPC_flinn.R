@@ -139,8 +139,6 @@ ggplot() +
 calc_params(fits$fit[[3]]) %>%
   # round for easy viewing
   mutate_all(round, 2)
-
-
 # calculate additional traits for heat killed treatment group
 calc_params(fits$fit[[2]]) %>%
   # round for easy viewing

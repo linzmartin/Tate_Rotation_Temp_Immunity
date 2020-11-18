@@ -34,14 +34,16 @@ Bt_Tcast_within_host_infection <- function (t, x, params) {
   KB <- params["KB"]
   KI <- params["KI"]
   sigma<-params["sigma"]
-  TCI <- params["TCI"]
-  TII <- params["TII"]
-  TB <- params["TB"]
+  #TCI <- params["TCI"]
+  #TII <- params["TII"]
+  #TB <- params["TB"]
   
   #model equations
   dHdt <- (psi*H*(KH-H))-(beta*B*H)-(p*H)-(I*m*H)
-  dIdt <- (TCI*gamma*I*(KI-I)) + (TII*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z))
-  dBdt <- TB*r*B*(1-B/KB)-B*d-c*I*B
+  #dIdt <- (TCI*gamma*I*(KI-I)) + (TII*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z))
+  #dBdt <- TB*r*B*(1-B/KB)-B*d-c*I*B
+  dIdt <- (gamma*I*(KI-I)) + (alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z))
+  dBdt <- r*B*(1-B/KB)-B*d-c*I*B
   dndt <- c(dHdt,dIdt,dBdt)
   list(dndt) #must be list format for ode
 }
@@ -52,8 +54,8 @@ times <- seq(from=0,to=3/365,by=1/365/4)
 
 parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.0001,
           gamma=0.1,KI=20000,alpha=0.0000085,KB=2000000,w=0.0005,z=0.001,
-          r=6000,d=0.003,c=0.005,sigma=500000,
-          TCI=,TII=,TB=) 
+          r=6000,d=0.003,c=0.005,sigma=500000)
+          #TCI=,TII=,TB=) 
 
 #Bt -- Fraction of Topt Growth Rate:
 #24C = 0.4821786
@@ -103,7 +105,6 @@ out %>%
   ggplot(aes(x=time,y=value,color=variable))+geom_line()+
   facet_wrap(~variable,scales="free_y",ncol=1)+
   guides(color=FALSE)+theme_bw()+
-  scale_y_log10()+
   labs(y="State Variable")+
   scale_x_continuous(name="Time (days)", 
                      breaks=c(0.000,0.001369863,0.002739726,0.004109589,0.005479452,
