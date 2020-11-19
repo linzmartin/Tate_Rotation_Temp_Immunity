@@ -1,4 +1,6 @@
-#loop practice / writing:
+#BtU Tcast within host model - LOOP through different temperatures
+#graphs at end
+#complete
 ####################
 # clear workspace
 rm(list = ls())
@@ -20,13 +22,13 @@ library(ggplot2)
 library(deSolve)
 #################################
 #creating temp data/ model for calculating fraction of Topt
-#################################
+###############################################
 #import the data and remove NAs
 Gene_data <- read_xlsx("Gene_temp_data.xlsx", sheet="Gene_Data_Modified") #Emily's data
 # lookinga at ddCT2 (fold change) vs. temp vs. treatment
 # this is condensed data from Emily's work - find in my box folder
 Gene_data<-na.omit(Gene_data) #remove NAs first
-###################################
+###############################################
 #Flinn model for Immune Gene Data
 fits <- Gene_data %>%
   group_by(., Treatment) %>%
@@ -71,7 +73,7 @@ for (i in 1:length(ddCT2atTemp$Temp)){
   rate_data <- rbind(rate_data, data_frame) #add rates empty data frame after each calculation
 }
 #get rid of repeated data:
-length(neededtemps[,1])
+#length(neededtemps[,1])
 rate_data<-rate_data[1:length(neededtemps[,1]),] #now, have T 24-24 only once
 
 
@@ -95,15 +97,14 @@ for (i in 1:length(rate_data$Temp)){
 fraction_data<-fraction_data[1:length(neededtemps[,1]),]
 ###########################################################
 
-#now, use a loop to:
-#(1) select fractions as parameters for each temp 
-#(2) run model at each temp w/ paramters
-#(3) store in matrix
+#functions needed:
+#Ratkowsky for B. cereus growth rate (substitute for BtU growth rate)
+Ratkowsky <- function(temp, Tmin, Tmax, b, c){
+  rate <- (b*(temp-Tmin)*(1-exp(c*(temp-Tmax))))^2
+  return(rate)
+}
 
-#then plot models on graph
-
-##############
-#this is the function
+#within host model
 Bt_Tcast_within_host_infection <- function (t, x, params) {
   #state variables
   H <- x[1] #Health Status
@@ -138,14 +139,73 @@ Bt_Tcast_within_host_infection <- function (t, x, params) {
   dndt <- c(dHdt,dIdt,dBdt)
   list(dndt) #must be list format for ode
 }
-#####################################
+##################################################################
+#now, use a loop:
+output.df <- data.frame() #Temp = Temp.vector, model = NA
 
-#times in ode is default unit of years - must make a fraction to get days
-times <- seq(from=0,to=3/365,by=1/365/4)
+for (i in 1:length(fraction_data$Temp)){
+  times <- seq(from=0,to=3/365,by=1/365/4)
+  xstart<-c(H=1,I=1000,B=10000)
+  #select fractions as parameters for each temp
+  TCI <- fraction_data[i,2]
+  TII <- fraction_data[i,3]
+  Btoptrate<-Ratkowsky(temp=36,Tmin=6,Tmax=49,b=0.004,c=0.14)
+  Btrate <- Ratkowsky(temp=fraction_data[i,1],Tmin=6,Tmax=49,b=0.004,c=0.14)
+  TB <- (Btrate/Btoptrate)
+  
+  parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.0001,
+            gamma=0.1,KI=20000,alpha=0.0000085,KB=2000000,w=0.0005,z=0.001,
+            r=6000,d=0.003,c=0.005,sigma=500000,TCI=TCI,TII=TII,TB=TB)
+  #run model at each temp w/ parameters
+  ode(
+    func=Bt_Tcast_within_host_infection,
+    y=xstart,
+    times=times,
+    parms=parms
+  ) %>% 
+    as.data.frame() -> out 
+ 
+  out<-mutate(out,temp=fraction_data[i,1]) #add temp to HIB vs. time output
+  output.df<-rbind(output.df,out) #store in data frame
+}
 
-parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.0001,
-          gamma=0.1,KI=20000,alpha=0.0000085,KB=2000000,w=0.0005,z=0.001,
-          r=6000,d=0.003,c=0.005,sigma=500000)
-#need to find these params from data #TCI=,TII=,TB=) 
+#next, organize data
+output.df<-output.df %>%
+  gather(variable,value,-temp,-time) %>% group_by(temp)
+head(output.df)
+#########################
+#then plot models on graph
+modelgraph<-ggplot(output.df, aes(x=time,y=(value),colour = temp, group=temp))+
+  geom_line()+
+  facet_wrap(~variable,scales="free_y",labeller = labeller(.multi_line = FALSE))+
+  scale_x_continuous(name="Time (days)", 
+                     breaks=c(0.000,0.001369863,0.002739726,0.004109589,0.005479452,
+                              0.006849315,0.008219178),
+                     labels = c("0.0","0.5","1.0","1.5","2.0","2.5","3.0"),
+                     limits=c(0,0.009))+
+  labs(y=NULL)
 
+jpeg(file="within_host_model_24to34C.jpeg",width=1000,height=500)
+modelgraph
+dev.off()
 
+modelgraph
+###
+#another type of graph
+jpeg(file="within_host_model_temps_colored.jpeg",width=1200,height=800)
+output.df %>%
+  ggplot(aes(x=time,y=value,color=variable))+
+  geom_line(aes(color=(as.factor(temp))))+
+  facet_wrap(~variable,scales="free_y",ncol=1)+
+  guides(size="legend",shape="legend")+theme_bw()+
+  labs(y="State Variable")+
+  #theme(legend.position = "bottom")+
+  scale_x_continuous(name="Time (days)", 
+                     breaks=c(0.000,0.001369863,0.002739726,0.004109589,0.005479452,
+                              0.006849315,0.008219178),
+                     labels = c("0.0","0.5","1.0","1.5","2.0","2.5","3.0"),
+                     limits=c(0,0.009))+
+  scale_linetype_discrete(name="Temperature(°C)")
+  #theme(legend.position="bottom", legend.box = "horizontal")
+dev.off()
+#############################################
