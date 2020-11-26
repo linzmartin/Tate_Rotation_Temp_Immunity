@@ -99,6 +99,7 @@ open.sir.model <- function (t, x, params) {
   mu <- params["mu"]
   gamma <- params["gamma"]
   N <- x[1]+x[2]+x[3]
+  
   dSdt <- B - beta*x[1]*x[2]/N - mu*x[1]
   dIdt <- beta*x[1]*x[2]/N - (mu+gamma)*x[2]
   dRdt <- gamma*x[2] - mu*x[3]

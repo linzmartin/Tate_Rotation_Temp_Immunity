@@ -1,7 +1,9 @@
 #SIS Model - between hosts
-
+###########################
 # clear workspace
 rm(list = ls())
+#set wd to your project folder
+setwd("C:/Users/linzm/Documents/Tate_Lab_Rotation/Tate_Rotation_Temp_Immunity")
 ###########################
 #load packages
 library (deSolve)
@@ -22,10 +24,15 @@ SIS_between_host_model<- function (t, x, params) {
   gamma <- params["gamma"]
   d <- params["d"]
   delta <- params["delta"]
+  r<-params["r"]
+  #N<-params["N"]
+  K<-params["K"]
+  b<-params["b"]
 
   #model equations
-  dSdt <- (-beta * S * I) + (gamma * I) - (d*S)
-  dIdt <- ( beta * S * I) - (gamma * I) - (delta*I)
+  dSdt <- r*(1-(S+I)/K)-(b*beta*S*I)+(gamma*I)-(d*S)
+  dIdt <- (b*beta*S*I)-(gamma*I)-(d+delta)*I
+  #N=S+I
   dndt <- c(dSdt,dIdt)
   list(dndt) #must be list format
 }
@@ -36,17 +43,21 @@ SIS_between_host_model<- function (t, x, params) {
   #at higher temps, reach 50% health faster, have longer IP
   #all are dead by 2 days if infected & do not recover
 #infectious_period =  2days - (time to 50% health) # infectious period
-t50 <- 0.8 #hypothetical
-infectious_period <- 2-t50
+t50 <- 1.0 #hypothetical
+infectious_period <- t50 #time infected to time of death
 #Beta = contact rate * transmission probability
 #Beta = % of cases from overall pop that result in infection
 beta_value <- 0.8 #0.005
 gamma_value <- 1 / infectious_period
-d_value <- 0.02
-delta_value <- 0.6
+d_value <- 0.5
+delta_value <- 0.8
+r<-1.3
+K<-2000
+b<-0.8
 #gamma_value<-1/5 #1
 #Ro <- beta_value / gamma_value
-parms <- c (beta = beta_value, gamma = gamma_value, d=d_value,delta=delta_value)
+parms <- c (beta = beta_value, gamma = gamma_value, d=d_value,delta=delta_value,
+            r=r,K=K,b=b)
 Sinit <- 50 #1000      # susceptible hosts initial
 Iinit <- 100 #1000           # infectious hosts initial
 N <- Sinit + Iinit 
