@@ -300,7 +300,7 @@ ggplot() +
   theme(legend.position = 'left') +
   labs(x = 'Temperature (ºC)',
        y = 'ddCT2',
-       title = 'Respiration across temperatures') +
+       title = 'Expression across temperatures') +
   geom_hline(aes(yintercept = 0), linetype = 2) +
   scale_color_brewer(type = 'qual', palette = 2)
 

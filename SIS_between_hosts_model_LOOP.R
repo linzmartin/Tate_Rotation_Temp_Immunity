@@ -1,4 +1,6 @@
-#SIS Model - between hosts
+#SIS Model - between hosts - non-obligate killer
+#transmission depends on bacterial growth at time t
+#writing loops to use w/in host model outputs
 ###########################
 # clear workspace
 rm(list = ls())
@@ -28,7 +30,7 @@ SIS_between_host_model<- function (t, x, params) {
   #N<-params["N"]
   K<-params["K"]
   b<-params["b"]
-
+  
   #model equations
   dSdt <- r*(1-(S+I)/K)-(b*beta*S*I)+(gamma*I)-(d*S)
   dIdt <- (b*beta*S*I)-(gamma*I)-(d+delta)*I
@@ -39,9 +41,9 @@ SIS_between_host_model<- function (t, x, params) {
 
 
 #temp affects infectious period 
-  #at lower temps, takes longer to decline to 50% health
-  #at higher temps, reach 50% health faster, have longer IP
-  #all are dead by 2 days if infected & do not recover
+#at lower temps, takes longer to decline to 50% health
+#at higher temps, reach 50% health faster, have longer IP
+#all are dead by 2 days if infected & do not recover
 #infectious_period =  2days - (time to 50% health) # infectious period
 t50 <- 1.0 #hypothetical
 infectious_period <- t50 #time infected to time of death
