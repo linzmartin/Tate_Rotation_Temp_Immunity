@@ -108,7 +108,7 @@ CI <- fits %>%
   unnest(cis) %>%
   rename(., conf.low = X2.5.., conf.high = X97.5..) %>%
   group_by(., Rate_Type) #%>%
-<<<<<<< HEAD
+
   #mutate(., term = c('rmax', 'topt', 'a')) #%>%
   #ungroup() %>%
   #select(., -data, -fit)
@@ -156,11 +156,7 @@ Flinn_model_of_rates <- ggplot() +
   labs(title=expression(paste("Immune Gene Expression Rates in ",italic("T. castaneum"))),
        subtitle="Thermal Performance Curves: Flinn Model",
        y="Expression rates (per hour)",
-<<<<<<< HEAD
-       x="Temperature (ºC)") +
-=======
        x="Temperature (ÂºC)") +
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
   scale_x_continuous(breaks=c(20,24,30,34), position="bottom")
 Flinn_model_of_rates
 dev.off()
