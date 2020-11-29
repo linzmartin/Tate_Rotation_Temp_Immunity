@@ -71,16 +71,17 @@ RateatTemp<-as.data.frame(RateatTemp)
 #max temps:
 select(fits, data, fit) 
 
-constit_topt <- calc_params(fits$fit[[1]]) %>% select(topt)
-constit_Topt <- as.numeric(constit_topt) %>% round(.,digits=1)
-induced_topt <- calc_params(fits$fit[[2]]) %>% select(topt)
-induced_Topt <- as.numeric(induced_topt) %>% round(.,digits=1)
+indep_topt <- calc_params(fits$fit[[1]]) %>% select(topt) #microbe independent
+indep_Topt <- as.numeric(indep_topt) %>% round(.,digits=1)
+dep_topt <- calc_params(fits$fit[[2]]) %>% select(topt) #microbe dependent
+dep_Topt <- as.numeric(dep_topt) %>% round(.,digits=1)
 
 #find rate at Topt = max rate
-constit_max_rate_Topt <- subset(RateatTemp, Rate_Type=="Constitutive_Rate" & Temp==constit_Topt,select = c("Rate"))
-constit_max_rate_Topt<-constit_max_rate_Topt[,1]
-induced_max_rate_Topt<-subset(RateatTemp, Rate_Type=="Induced_Rate" & Temp==induced_Topt,select = c("Rate"))
-induced_max_rate_Topt<-induced_max_rate_Topt[,1]
+indep_max_rate_Topt <- subset(RateatTemp, Rate_Type=="Microbe_Independent_Rate" & Temp==indep_Topt,select = c("Rate"))
+indep_max_rate_Topt<-indep_max_rate_Topt[,1]
+dep_max_rate_Topt<-subset(RateatTemp, Rate_Type=="Microbe_Dependent_Rate" & Temp==dep_Topt,select = c("Rate"))
+dep_max_rate_Topt<-dep_max_rate_Topt[,1]
+
 ##########
 #next, we can calculate predictions for every 2C (or degrees of interest):
 tempsforgraphing<-Gene_data %>%
@@ -97,32 +98,31 @@ RateatTempgraph<-select(predsforgraph,-data,-fit)
 RateatTempgraph<-as.data.frame(RateatTempgraph) 
 Tempofi_graph<-RateatTempgraph$Temp
 
-Induced_sub<-subset(RateatTempgraph, Rate_Type=="Induced_Rate")
-Constitutive_sub<-subset(RateatTempgraph, Rate_Type=="Constitutive_Rate")
+Dep_sub<-subset(RateatTempgraph, Rate_Type=="Microbe_Dependent_Rate")
+Indep_sub<-subset(RateatTempgraph, Rate_Type=="Microbe_Independent_Rate")
 
 #then find fraction: rate at Ti / rate at Topt
-induced_fractions<-data.frame()
-for (i in 1:length(Induced_sub$Temp)){
-  fraction_induced<-(Induced_sub$Rate/induced_max_rate_Topt) %>% round(.,digits=3)
-  df <- data.frame("Temp"=Tempofi_graph, fraction_induced)
-  induced_fraction_data <- rbind(induced_fractions,df) #add rates empty data frame after each calculation
+dependent_fractions<-data.frame()
+for (i in 1:length(Dep_sub$Temp)){
+  fraction_dependent<-(Dep_sub$Rate/dep_max_rate_Topt) %>% round(.,digits=3)
+  ddf <- data.frame("Temp"=Tempofi_graph, fraction_dependent)
+  dependent_fraction_data <- rbind(dependent_fractions,ddf) #add rates empty data frame after each calculation
 }
-induced_fraction_data<-induced_fraction_data[1:length(tempsforgraphing[,1]),]
+dependent_fraction_data<-dependent_fraction_data[1:length(tempsforgraphing[,1]),]
 
-constit_fractions<-data.frame()
-for (i in 1:length(Constitutive_sub$Temp)){
-  fraction_constitutive<-(Constitutive_sub$Rate/constit_max_rate_Topt) %>% round(.,digits=3)
-  constit_df <- data.frame("Temp"=Tempofi_graph, fraction_constitutive)
-  constit_fraction_data <- rbind(constit_fractions,constit_df) #add rates empty data frame after each calculation
+indep_fractions<-data.frame()
+for (i in 1:length(Indep_sub$Temp)){
+  fraction_indep<-(Indep_sub$Rate/indep_max_rate_Topt) %>% round(.,digits=3)
+  indep_df <- data.frame("Temp"=Tempofi_graph, fraction_indep)
+  indep_fraction_data <- rbind(indep_fractions,indep_df) #add rates empty data frame after each calculation
 }
-constit_fraction_data<-constit_fraction_data[1:length(tempsforgraphing[,1]),]
+indep_fraction_data<-indep_fraction_data[1:length(tempsforgraphing[,1]),]
 
-fraction_data<-cbind(constit_fraction_data, induced_fraction_data[,2]) 
-names(fraction_data)[2]<-"Constitutive fraction"
-names(fraction_data)[3]<-"Induced Fraction"
+fraction_data<-cbind(indep_fraction_data, dependent_fraction_data[,2]) 
+names(fraction_data)[2]<-"Microbe Independent Fraction"
+names(fraction_data)[3]<-"Microbe Dependent Fraction"
 fraction_data #view to verify - fractions near optimum temp should be closer to 1
 ###########################################################
-
 #functions needed:
 #Ratkowsky for B. cereus growth rate (substitute for BtU growth rate)
 Ratkowsky <- function(temp, Tmin, Tmax, b, c){
@@ -153,13 +153,13 @@ Bt_Tcast_within_host_infection <- function (t, x, params) {
   KB <- params["KB"]
   KI <- params["KI"]
   sigma<-params["sigma"]
-  TCI <- params["TCI"]
-  TII <- params["TII"]
+  TMI <- params["TMI"]
+  TMD <- params["TMD"]
   TB <- params["TB"]
   
   #model equations
   dHdt <- (psi*H*(KH-H))-(beta*B*H)-(p*H)-(I*m*H)
-  dIdt <- (TCI*gamma*I*(KI-I)) + (TII*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z))
+  dIdt <- (TMI*gamma*I*(KI-I)) + (TMD*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z))
   dBdt <- TB*r*B*(1-B/KB)-B*d-c*I*B
   dndt <- c(dHdt,dIdt,dBdt)
   list(dndt) #must be list format for ode
@@ -172,14 +172,14 @@ for (i in 1:length(fraction_data$Temp)){
   times <- seq(from=0,to=3/365,by=1/365/12) #original times
   xstart<-c(H=1,I=1000,B=10000)
   #select fractions as parameters for each temp
-  TCI <- fraction_data[i,2]
-  TII <- fraction_data[i,3]
+  TMI <- fraction_data[i,2]
+  TMD <- fraction_data[i,3]
   Btoptrate<-Ratkowsky(temp=36,Tmin=6,Tmax=49,b=0.004,c=0.14)
   Btrate <- Ratkowsky(temp=fraction_data[i,1],Tmin=6,Tmax=49,b=0.004,c=0.14)
   TB <- (Btrate/Btoptrate)
   parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.0001,
             gamma=0.1,KI=20000,alpha=0.0000085,KB=2000000,w=0.0005,z=0.001,
-            r=6000,d=0.003,c=0.005,sigma=500000,TCI=TCI,TII=TII,TB=TB) #original
+            r=6000,d=0.003,c=0.005,sigma=500000,TMI=TMI,TMD=TMD,TB=TB) #original
   #run model at each temp w/ parameters
   ode(
     func=Bt_Tcast_within_host_infection,
@@ -211,12 +211,12 @@ write.xlsx(output.df, file = "HIB_within_host_model_output_longversion.xlsx",
 paramdf<-data.frame()
 for (i in 1:length(fraction_data$Temp)){
   #select fractions as parameters for each temp
-  TCI <- fraction_data[i,2]
-  TII <- fraction_data[i,3]
+  TMI <- fraction_data[i,2]
+  TMD <- fraction_data[i,3]
   Btoptrate<-Ratkowsky(temp=36,Tmin=6,Tmax=49,b=0.004,c=0.14)
   Btrate <- Ratkowsky(temp=fraction_data[i,1],Tmin=6,Tmax=49,b=0.004,c=0.14)
   TB <- (Btrate/Btoptrate)
-  paramcols<-cbind(TCI,TII,TB)
+  paramcols<-cbind(TMI,TMD,TB)
   
   paramcols<-cbind(paramcols,temp=fraction_data[i,1]) #add temp to HIB vs. time output
   paramdf<-rbind(paramdf,paramcols) #store in data frame

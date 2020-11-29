@@ -41,6 +41,10 @@ time_values$daystoH50<-(time_values$timetoH50)/0.0027397 #convert time from frac
 
 #combine temp, TB, and time to 50% health into one data frame for use:
 paramtable<-as.data.frame(cbind(Time50H=time_values$daystoH50,Temp=time_values$temp,TB=tempparamdata$TB))
+
+savingparams<-as.data.frame(cbind(Temp=time_values$temp, t50_value=time_values$daystoH50,TB=tempparamdata$TB ))
+write.xlsx(savingparams, file = "Temp_dependent_params_betweenhost.xlsx",
+           sheetName = "1", append = FALSE,row.names = FALSE)
 #################################################
 #3 compartment between host model:
 SIS_between_host_model_with_compartmentP<- function (t, x, params) {
@@ -58,25 +62,35 @@ SIS_between_host_model_with_compartmentP<- function (t, x, params) {
   r<-params["r"]
   K<-params["K"]
   g<-params["g"]
-  Kp<-params["Kp"]
+  #Kp<-params["Kp"]
   mu<-params["mu"]
-  f<-params["f"] #fraction of topt Median Survival Time / bacterial growth rate fraction?
+  TB<-params["TB"] #bacterial growth rate fraction (from within host / Ratkowsky models)
+  #f<-params["f"] #fraction of topt Median Survival Time / bacterial growth rate fraction?
 
   #model equations
+  #### developing model: #####
   #dSdt <- r*(1-(S+I)/K)-(beta*S*P)+(gamma*I)-(d*S)
   #dIdt <- (beta*S*P)-(gamma*I)-((d+delta)*I)
   #dPdt <- g*((d+delta)*I)*(1-P/Kp)-(beta*P)
-  dSdt <- r*(1-(S+I)/K)-(beta*S*g*P*(1-P/Kp))+(gamma*I)-(d*S) #susceptible beetles
-  dIdt <- (beta*S*g*P*(1-P/Kp))-(gamma*I)-(f*(d+delta)*I) #infected beetles
-  dPdt <- (f*(d+delta)*I)-(mu*P) #compartment P = beetles that are dead and producing spores
+  
+  #dSdt <- r*(1-(S+I)/K)-(beta*S*g*P*(1-P/Kp))+(gamma*I)-(d*S) #susceptible beetles
+  #dIdt <- (beta*S*g*P*(1-P/Kp))-(gamma*I)-(f*(d+delta)*I) #infected beetles
+  #dPdt <- (f*(d+delta)*I)-(mu*P) #compartment P = beetles that are dead and producing spores
+  ##############
+  
+  #better ODEs for model:
+  dSdt <- r*(1-(S+I)/K)-(beta*S*P)+(gamma*I)-(d*S) #susceptible beetles
+  dIdt <- (beta*S*P)-(gamma*I)-((d+delta)*I) #infected beetles
+  dPdt <- (g*TB*(d+delta)*I)-(mu*P) #compartment P = beetles that are dead and producing spores
   
   dndt <- c(dSdt,dIdt,dPdt)
   list(dndt) #must be list format
 }
 #######################################################
 #create initial empty data frame to store model output
-SIP_output.df <- data.frame() #must do this every time prior to running new models!
+SIP_output.df <- data.frame()#must do this every time prior to running new models!
 #run model at diff temps and store output:
+gammaval_output <-data.frame()
 for (i in 1:length(paramtable$Temp)){
   t50 <- paramtable[i,1]
   TB <- paramtable[i,3]
@@ -92,9 +106,9 @@ for (i in 1:length(paramtable$Temp)){
               r=0.8,#0.8#reproductive rate of susceptible beetles
               K=20000,#carrying capacity of live beetles
               g=100, #sporulation rate of dead infected beetle #this has huge impact on shape
-              Kp=1000, #carrying capacity of spores per infected beetle
+              #Kp=1000, #carrying capacity of spores per infected beetle
               mu=0.05, #decay of dead beetles producing spores
-              f = TB) #fraction of Topt bacterial growth
+              TB = TB) #fraction of Topt bacterial growth
 
   #run model at each temp w/ parameters
   ode(
@@ -107,6 +121,12 @@ for (i in 1:length(paramtable$Temp)){
   
   SIP_out<-mutate(SIP_out,temp=paramtable[i,2]) #add temp to output
   SIP_output.df<-rbind(SIP_output.df,SIP_out) #store in data frame
+  
+  #save gamma values as well for reference
+  gammavalue<-(1/t50)
+  gammaout<-data.frame(gammavalue)
+  gammaout<-cbind(gammaout, temp=paramtable[i,2]) #add temp
+  gammaval_output <- rbind(gammaval_output,gammaout)
 }
 
 #next, organize data
@@ -118,6 +138,9 @@ as.data.frame(SIP_output.df)
 ##################
 #save data frame to excel spreadsheet in working directory:
 write.xlsx(SIP_output.df, file = "SIP_3compartment_between_host_model_output.xlsx",
+           sheetName = "1", append = FALSE,row.names = FALSE)
+
+write.xlsx(gammaval_output, file="Temp_dependent_gamma_values_between_host_model.xlsx",
            sheetName = "1", append = FALSE,row.names = FALSE)
 
 SIP_subset<-subset(SIP_output.df,variable=="S"|variable=="I")
