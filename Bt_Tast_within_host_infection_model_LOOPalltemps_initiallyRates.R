@@ -18,10 +18,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(deSolve)
-<<<<<<< HEAD
 library(openxlsx)
-=======
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
 #################################
 
 ###############################################
@@ -67,7 +64,7 @@ RateatTemp<-as.data.frame(RateatTemp)
 #max temps:
 select(fits, data, fit) 
 
-<<<<<<< HEAD
+
 indep_topt <- calc_params(fits$fit[[1]]) %>% select(topt) #microbe independent
 indep_Topt <- as.numeric(indep_topt) %>% round(.,digits=1)
 dep_topt <- calc_params(fits$fit[[2]]) %>% select(topt) #microbe dependent
@@ -78,18 +75,7 @@ indep_max_rate_Topt <- subset(RateatTemp, Rate_Type=="Microbe_Independent_Rate" 
 indep_max_rate_Topt<-indep_max_rate_Topt[,1]
 dep_max_rate_Topt<-subset(RateatTemp, Rate_Type=="Microbe_Dependent_Rate" & Temp==dep_Topt,select = c("Rate"))
 dep_max_rate_Topt<-dep_max_rate_Topt[,1]
-=======
-constit_topt <- calc_params(fits$fit[[1]]) %>% select(topt)
-constit_Topt <- as.numeric(constit_topt) %>% round(.,digits=1)
-induced_topt <- calc_params(fits$fit[[2]]) %>% select(topt)
-induced_Topt <- as.numeric(induced_topt) %>% round(.,digits=1)
 
-#find rate at Topt = max rate
-constit_max_rate_Topt <- subset(RateatTemp, Rate_Type=="Constitutive_Rate" & Temp==constit_Topt,select = c("Rate"))
-constit_max_rate_Topt<-constit_max_rate_Topt[,1]
-induced_max_rate_Topt<-subset(RateatTemp, Rate_Type=="Induced_Rate" & Temp==induced_Topt,select = c("Rate"))
-induced_max_rate_Topt<-induced_max_rate_Topt[,1]
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
 ##########
 #next, we can calculate predictions for every 2C (or degrees of interest):
 tempsforgraphing<-Gene_data %>%
@@ -106,7 +92,6 @@ RateatTempgraph<-select(predsforgraph,-data,-fit)
 RateatTempgraph<-as.data.frame(RateatTempgraph) 
 Tempofi_graph<-RateatTempgraph$Temp
 
-<<<<<<< HEAD
 Dep_sub<-subset(RateatTempgraph, Rate_Type=="Microbe_Dependent_Rate")
 Indep_sub<-subset(RateatTempgraph, Rate_Type=="Microbe_Independent_Rate")
 
@@ -130,31 +115,7 @@ indep_fraction_data<-indep_fraction_data[1:length(tempsforgraphing[,1]),]
 fraction_data<-cbind(indep_fraction_data, dependent_fraction_data[,2]) 
 names(fraction_data)[2]<-"Microbe Independent Fraction"
 names(fraction_data)[3]<-"Microbe Dependent Fraction"
-=======
-Induced_sub<-subset(RateatTempgraph, Rate_Type=="Induced_Rate")
-Constitutive_sub<-subset(RateatTempgraph, Rate_Type=="Constitutive_Rate")
 
-#then find fraction: rate at Ti / rate at Topt
-induced_fractions<-data.frame()
-for (i in 1:length(Induced_sub$Temp)){
-  fraction_induced<-(Induced_sub$Rate/induced_max_rate_Topt) %>% round(.,digits=3)
-  df <- data.frame("Temp"=Tempofi_graph, fraction_induced)
-  induced_fraction_data <- rbind(induced_fractions,df) #add rates empty data frame after each calculation
-}
-induced_fraction_data<-induced_fraction_data[1:length(tempsforgraphing[,1]),]
-
-constit_fractions<-data.frame()
-for (i in 1:length(Constitutive_sub$Temp)){
-  fraction_constitutive<-(Constitutive_sub$Rate/constit_max_rate_Topt) %>% round(.,digits=3)
-  constit_df <- data.frame("Temp"=Tempofi_graph, fraction_constitutive)
-  constit_fraction_data <- rbind(constit_fractions,constit_df) #add rates empty data frame after each calculation
-}
-constit_fraction_data<-constit_fraction_data[1:length(tempsforgraphing[,1]),]
-
-fraction_data<-cbind(constit_fraction_data, induced_fraction_data[,2]) 
-names(fraction_data)[2]<-"Constitutive fraction"
-names(fraction_data)[3]<-"Induced Fraction"
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
 fraction_data #view to verify - fractions near optimum temp should be closer to 1
 ###########################################################
 
@@ -189,22 +150,14 @@ Bt_Tcast_within_host_infection <- function (t, x, params) {
   KB <- params["KB"]
   KI <- params["KI"]
   sigma<-params["sigma"]
-<<<<<<< HEAD
+
   TMI <- params["TMI"]
   TMD <- params["TMD"]
-=======
-  TCI <- params["TCI"]
-  TII <- params["TII"]
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
   TB <- params["TB"]
   
   #model equations
   dHdt <- (psi*H*(KH-H))-(beta*B*H)-(p*H)-(I*m*H)
-<<<<<<< HEAD
   dIdt <- (TMI*gamma*I*(KI-I)) + (TMD*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z))
-=======
-  dIdt <- (TCI*gamma*I*(KI-I)) + (TII*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z))
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
   dBdt <- TB*r*B*(1-B/KB)-B*d-c*I*B
   dndt <- c(dHdt,dIdt,dBdt)
   list(dndt) #must be list format for ode
@@ -218,13 +171,9 @@ for (i in 1:length(fraction_data$Temp)){
   xstart<-c(H=1,I=1000,B=10000)
   
   #select fractions as parameters for each temp
-<<<<<<< HEAD
   TMI <- fraction_data[i,2]
   TMD <- fraction_data[i,3]
-=======
-  TCI <- fraction_data[i,2]
-  TII <- fraction_data[i,3]
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
+
   Btoptrate<-Ratkowsky(temp=36,Tmin=6,Tmax=49,b=0.004,c=0.14)
   Btrate <- Ratkowsky(temp=fraction_data[i,1],Tmin=6,Tmax=49,b=0.004,c=0.14)
   TB <- (Btrate/Btoptrate)
@@ -232,11 +181,8 @@ for (i in 1:length(fraction_data$Temp)){
 
   parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.0001,
            gamma=0.1,KI=20000,alpha=0.0000085,KB=2000000,w=0.0005,z=0.001,
-<<<<<<< HEAD
           r=6000,d=0.003,c=0.005,sigma=500000,TMI=TMI,TMD=TMD,TB=TB) #original
-=======
-          r=6000,d=0.003,c=0.005,sigma=500000,TCI=TCI,TII=TII,TB=TB) #original
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
+
   
   ###
   #parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.000001,
@@ -265,15 +211,13 @@ for (i in 1:length(fraction_data$Temp)){
 output.df<-output.df %>%
   gather(variable,value,-temp,-time) %>% group_by(temp)
 head(output.df)
-<<<<<<< HEAD
+
 as.data.frame(output.df)
 ##################
 #save data frame
 write.xlsx(output.df, file = "HIB_within_host_model_output.xlsx",
            sheetName = "1", append = FALSE,row.names = FALSE)
 
-=======
->>>>>>> bf161c5b7449982909bf8cffa040566eafd9f7a4
 ###########################################
 #then plot models on graph
 modelgraph<-ggplot(output.df, aes(x=time,y=(value),colour = temp, group=temp))+
