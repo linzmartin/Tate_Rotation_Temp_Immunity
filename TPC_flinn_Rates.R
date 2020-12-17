@@ -50,7 +50,12 @@ fits <- Gene_data %>%
                                                convergence_count = FALSE)))
 
 head(fits)
-
+fits$fit[[1]]
+fits$fit[[2]]
+#microbe dependent parameters
+#a<- 8.39988
+#b<- -0.73107
+#c<- 0.01452
 ###############
 #Gaussian 
 
@@ -199,7 +204,10 @@ Btu34<-flinn_1991(temp=24,a=0.09064983,b=-0.1477239,c=0.0029320)
 Btu24frac<-Btu24/Btu2519*100
 
 
-
+#microbe dependent parameters
+#a<- 8.39988
+#b<- -0.73107
+#c<- 0.01452
 #############################
 #calculate ddCT2 based on model at temps to find max ddCT and %s
 neededtemps <- Gene_data %>%
