@@ -1,5 +1,7 @@
 #mismatch between host and pathogen thermal optima
 
+#for individual shifts
+
 #host thermal optimum
 #pathogen thermal optimum 
 #how does increased host Topt (closer to pathogen Topt) affect model output?
