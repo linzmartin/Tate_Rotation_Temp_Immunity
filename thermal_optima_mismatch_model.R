@@ -24,8 +24,6 @@ library(nlstools)
 #############################
 
 #################### Section 1: within-host model #####################
-
-
 #import the data and remove NAs
 Gene_data <- read_xlsx("Gene_temp_data.xlsx", sheet="Rate_Data") #Emily's data
 # lookinga at Rate vs. temp vs. treatment
@@ -153,7 +151,7 @@ Bt_Tcast_within_host_infection <- function (t, x, params) {
   d <- params["d"]
   c <- params["c"]
   beta <- params["beta"]
-  gamma <- params["gamma"]
+  #gamma <- params["gamma"]
   alpha <- params["alpha"]
   w <- params["w"]
   z <- params["z"]
@@ -201,10 +199,16 @@ for (i in 1:length(fraction_data$Temp)){
   #gamma=1,KI=20000,alpha=0.00085,KB=2000000,w=0.0005,z=0.001,
   #r=6000,d=0.003,c=0.05,sigma=500000,TMI=TMI,TMD=TMD,TB=TB) #parms for high I mods - conservative changes, with TMI
  
-   #---> new parms w/o TMI & increase alpha:
+   #---> new parms w/o Microbe Indep rate & increase alpha:
   parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.00001,
-            gamma=1,KI=20000,alpha=0.0085,KB=2000000,w=0.0005,z=0.001,
-            r=6000,d=0.003,c=0.05,sigma=500000,TMD=TMD,TB=TB)
+           KI=20000,alpha=0.0085,KB=2000000,w=0.0005,z=0.001,
+          r=6000,d=0.003,c=0.05,sigma=500000,TMD=TMD,TB=TB)
+  
+  
+  #---------> new parms 12/22 w/o TMI, better I but not quite as good so we reach T50 times
+  #parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.00001,
+   #         KI=20000,alpha=0.0025,KB=2000000,w=0.0005,z=0.001,
+    #        r=6000,d=0.003,c=0.05,sigma=500000,TMD=TMD,TB=TB)
   
   #run model at each temp w/ parameters
   ode(
@@ -227,8 +231,8 @@ head(output.df)
 as.data.frame(output.df)
 ##################
 #save data frame (modify name of file as needed)
-#write.xlsx(output.df, file = "HIB_within_host_model_output_OG+8C+c*TMD+conserv_better_I.xlsx",
-#          sheetName = "1", append = FALSE,row.names = FALSE)
+write.xlsx(output.df, file = "HIB_within_host_model_output_OG+8C+conserv_better_I.xlsx",
+          sheetName = "1", append = FALSE,row.names = FALSE)
 
 write.xlsx(output.df, file = "HIB_within_host_model_output_+No_shift+conserv_better_I+No_TMI.xlsx",
           sheetName = "1", append = FALSE,row.names = FALSE)
@@ -281,10 +285,17 @@ for (i in 1:length(fraction_data$Temp)){
   #gamma=1,KI=20000,alpha=0.00085,KB=2000000,w=0.0005,z=0.001,
   #r=6000,d=0.003,c=0.05,sigma=500000,TMI=TMI,TMD=TMD,TB=TB) #parms for high I mods - conservative changes
   
-  #---> new parms w/o TMI & increase alpha:
+  #---> new parms w/o Microbe Indep rate & increase alpha:
   parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.00001,
-            gamma=1,KI=20000,alpha=0.0085,KB=2000000,w=0.0005,z=0.001,
-            r=6000,d=0.003,c=0.05,sigma=500000,TMD=TMD,TB=TB)
+           KI=20000,alpha=0.0085,KB=2000000,w=0.0005,z=0.001,
+          r=6000,d=0.003,c=0.05,sigma=500000,TMD=TMD,TB=TB)
+  
+ 
+  
+   #---------> new parms 12/22 w/o TMI, better I but not quite as good so we reach T50 times
+  #parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.00001,
+   #         KI=20000,alpha=0.0025,KB=2000000,w=0.0005,z=0.001,
+    #        r=6000,d=0.003,c=0.05,sigma=500000,TMD=TMD,TB=TB)
   
   #run model at each temp w/ parameters
   ode(
@@ -349,19 +360,27 @@ Repro_data <- read_xlsx("Tcast_reproduction_Park1948data.xlsx") #reproduction v.
 ###########################################
 #extract time values for time to 50% health from data frame:
 time_values<-data.frame()
+health_values<-data.frame()
 for (i in unique(Health$temp)){
   Healthsub<-subset(Health,temp==i)
   health50percent<-which(abs(Healthsub$value-0.5)==min(abs(Healthsub$value-0.5)))
   timetoH50<-Healthsub$time[health50percent]
   times<-cbind(timetoH50,temp=i)
   time_values<-rbind(time_values,times)
+  
+  Healthsub<-subset(Health,temp==i)
+  time24hrs<-which(abs(Healthsub$time-0.0027397)==min(abs(Healthsub$time-0.0027397)))
+  Health_at_24hrs<-Healthsub$value[time24hrs]
+  addtemp<-cbind(Health_at_24hrs,temp=i)
+  health_values<-rbind(health_values,addtemp)
 }
 time_values$daystoH50<-(time_values$timetoH50)/0.0027397 #convert time from fraction of years to days (24 hrs = 0.0027397 yrs)
 
-#combine temp, TB, and time to 50% health into one data frame for use:
-paramtable<-as.data.frame(cbind(Time50H=time_values$daystoH50,Temp=time_values$temp,TB=tempparamdata$TB))
 
-savingparams<-as.data.frame(cbind(Temp=time_values$temp, t50_value=time_values$daystoH50,TB=tempparamdata$TB ))
+#combine temp, TB, and time to 50% health into one data frame for use:
+paramtable<-as.data.frame(cbind(Time50H=time_values$daystoH50,Temp=time_values$temp,TB=tempparamdata$TB,Health_24hrs=health_values$Health_at_24hrs))
+
+savingparams<-as.data.frame(cbind(Temp=time_values$temp, t50_value=time_values$daystoH50,TB=tempparamdata$TB, Health_24hrs=health_values$Health_at_24hrs))
 write.xlsx(savingparams, file = "Temp_dependent_params_betweenhost.xlsx",
            sheetName = "1", append = FALSE,row.names = FALSE)
 
@@ -383,7 +402,7 @@ gausfit<-nls_multstart(Mean_eggs~gaussian_1987(temp = Temp, rmax, topt, a),
                        convergence_count = FALSE)
 summary(gausfit)
 #parms<-calc_params(gausfit)
-coeff_list<-coeffs(gausfit)
+coeff_list<-coef(gausfit)
 
 Repro_rmax<-coeff_list[[1]]
 Repro_topt<-coeff_list[[2]]
@@ -406,28 +425,18 @@ SIS_between_host_model_with_compartmentP<- function (t, x, params) {
   r<-params["r"]
   K<-params["K"]
   g<-params["g"]
-  #Kp<-params["Kp"]
   mu<-params["mu"]
   TB<-params["TB"] #bacterial growth rate fraction (from within host / Ratkowsky models)
-  #f<-params["f"] #fraction of topt Median Survival Time / bacterial growth rate fraction?
   TR<-params["TR"]
+  #t50<-params["t50"]
+  #Hat24<-params["Hat24"]
   
   #model equations
-  #### developing model: #####
-  #dSdt <- r*(1-(S+I)/K)-(beta*S*P)+(gamma*I)-(d*S)
-  #dIdt <- (beta*S*P)-(gamma*I)-((d+delta)*I)
-  #dPdt <- g*((d+delta)*I)*(1-P/Kp)-(beta*P)
-  
-  #dSdt <- r*(1-(S+I)/K)-(beta*S*g*P*(1-P/Kp))+(gamma*I)-(d*S) #susceptible beetles
-  #dIdt <- (beta*S*g*P*(1-P/Kp))-(gamma*I)-(f*(d+delta)*I) #infected beetles
-  #dPdt <- (f*(d+delta)*I)-(mu*P) #compartment P = beetles that are dead and producing spores
-  ##############
-  
   #better ODEs for model:
   dSdt <- TR*r*(1-(S+I)/K)-(beta*S*P)+(gamma*I)-(d*S) #susceptible beetles
   dIdt <- (beta*S*P)-(gamma*I)-((d+delta)*I) #infected beetles
   dPdt <- (g*TB*(d+delta)*I)-(mu*P) #compartment P = beetles that are dead and producing spores
-  
+
   dndt <- c(dSdt,dIdt,dPdt)
   list(dndt) #must be list format
 }
@@ -439,6 +448,7 @@ gammaval_output <-data.frame()
 for (i in 1:length(paramtable$Temp)){
   t50 <- paramtable[i,1]
   TB <- paramtable[i,3]
+  Hat24<- paramtable[i,4]
   
   Repro_rate_at_T<-Repro_gaussian(temp=paramtable[i,2],rmax=Repro_rmax,topt=Repro_topt,a=Repro_a)
   TR <- (Repro_rate_at_T/Repro_rmax)
@@ -446,13 +456,14 @@ for (i in 1:length(paramtable$Temp)){
   xstart<-c(S=100,I=100,P=0) #start with 100 individuals in each compartment
   times<-seq(0,300,by=1) #300 days, by 1 day
   
-  parms <- c (beta = 0.008, #Beta = contact rate * transmission probability
-              #Beta = % of cases from overall pop that result in infection
-              gamma = 1/t50, #gamma = 1/(infectious period)
+  parms <- c (#t50=t50,
+              beta=0.008, #Beta = contact rate * transmission probability
+                #Beta = % of cases from overall pop that result in infection
+              gamma=0.8*Hat24, #gamma = 1/(duration of infectious period)
               d=0.0005,#natural death rate
-              delta=0.0005,#additional death rate due to infection
-              r=0.8,#0.8#reproductive rate of susceptible beetles
-              K=20000,#carrying capacity of live beetles
+              delta=0.0005, #additional death rate due to infection
+              r=0.8,#reproductive rate of susceptible beetles
+              K=300,#20000 #carrying capacity of live beetles
               g=100, #sporulation rate of dead infected beetle #this has huge impact on shape
               #Kp=1000, #carrying capacity of spores per infected beetle
               mu=0.05, #decay of dead beetles producing spores
@@ -469,7 +480,10 @@ for (i in 1:length(paramtable$Temp)){
     as.data.frame() -> SIP_out 
   
   SIP_out<-mutate(SIP_out,temp=paramtable[i,2]) #add temp to output
+  SIP_out<-cbind(SIP_out,N=(SIP_out$S + SIP_out$I)) #sum S + I to = N
+  SIP_out<-cbind(SIP_out,prop_I=SIP_out$I/(SIP_out$I + SIP_out$S),prop_S=SIP_out$S/(SIP_out$I + SIP_out$S))
   SIP_output.df<-rbind(SIP_output.df,SIP_out) #store in data frame
+  
   
   #save gamma values as well for reference
   gammavalue<-(1/t50)
@@ -502,6 +516,7 @@ modelgraph<-ggplot(SIP_output.df, aes(x=time,y=(value),colour = temp, group=temp
   labs(y="Number of Individual Beetles")
 modelgraph
 
+
 #graph SI only:
 modelgraphSIonly<-ggplot(SIP_subset, aes(x=time,y=(value),colour = temp, group=temp))+
   geom_line()+
@@ -527,7 +542,9 @@ model_with_colors
 jpeg(file="SIP3C_24to34_withcolors.jpeg",width=600,height=500)
 model_with_colors
 dev.off()
-
+###############################################
+ggplot
+####################################
 SIP_output.df %>%
   ggplot(aes(x=time,y=value,color=variable))+geom_line(aes(linetype=(as.factor(temp))))+
   facet_wrap(~variable,scales="free_y",ncol=1)+

@@ -16,16 +16,25 @@ library(purrr)
 library(dplyr)
 library(tidyr)
 library(nlstools)
+library(deSolve)
+#library(reshape2)
+#library(metR)
 #############################
 #import the data and remove NAs
 Gene_data <- read_xlsx("Gene_temp_data.xlsx", sheet="Rate_Data") #Emily's data
-# lookinga at Rate vs. temp vs. treatment
+# looking at Rate vs. temp 
 # this is condensed data from Emily's work - find in my box folder
 Gene_data<-na.omit(Gene_data) #remove NAs first
 
 ################################
+
+#create list of numbers to add to thermal optimum of host immunity to create Topt shift
 temp_shifts <- data.frame(temp=c(seq(from=1, to=8,by=1)),stringsAsFactors = FALSE)
 
+#####
+#store functions that will be needed:
+
+#Ratkowsky bacterial growth model
 Ratkowsky <- function(temp, Tmin, Tmax, b, c){
   rate <- (b*(temp-Tmin)*(1-exp(c*(temp-Tmax))))^2
   return(rate)
@@ -56,24 +65,25 @@ Bt_Tcast_within_host_infection <- function (t, x, params) {
   KI <- params["KI"]
   sigma<-params["sigma"]
   
-  #TMI <- params["TMI"]
   TMD <- params["TMD"]
   TB <- params["TB"]
   
   #model equations
   dHdt <- (psi*H*(KH-H))-(beta*B*H)-(p*H)-(I*m*H)
-  #dIdt <- (TMI*gamma*I*(KI-I)) + (TMD*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z))
-  dIdt <- (TMD*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z)) #new changes: get rid of microbe-independent rate
-  #dBdt <- TB*r*B*(1-B/KB)-B*d-c*I*B
+  dIdt <- (TMD*alpha*I*(KB/(1+exp(-0.001*(B-sigma)))))-(I*(B*w + z)) #new changes: get rid of microbe-independent rate & TMI parameter
   dBdt <- TB*r*B*(1-B/KB)-B*d-c*I*B
+  
   dndt <- c(dHdt,dIdt,dBdt)
   list(dndt) #must be list format for ode
 }
 
+###################
+#run the Within Host Model with different shifts in Topt 
 
-appendtimes<-data.frame() #must run this first
-HIB_at_times_alltemps<-data.frame()
+appendtimes<-data.frame() #must run these empty frames first to initialize
 outputdataframetotals<-data.frame()
+HIB_at_times_alltemps<-data.frame()
+
 for (i in 1:length(temp_shifts$temp)){
   shifted_gene_temp_data <- Gene_data[1]+i 
   shifted_gene_data<-cbind(shifted_gene_temp_data,Gene_data[2:5])
@@ -165,8 +175,6 @@ for (i in 1:length(temp_shifts$temp)){
   names(fraction_data)[3]<-"Microbe Dependent Fraction"
   
   ####
-  
-
   output.df <- data.frame() #Temp = Temp.vector, model = NA #must do this every time prior to running new models!
   for (l in 1:length(fraction_data$Temp)){
     times <- seq(from=0,to=3/365,by=1/365/4) #original times
@@ -179,7 +187,7 @@ for (i in 1:length(temp_shifts$temp)){
     Btrate <- Ratkowsky(temp=fraction_data[l,1],Tmin=6,Tmax=49,b=0.004,c=0.14)
     TB <- (Btrate/Btoptrate)
     
-    #---> new parms w/o TMI & increase alpha:
+    #---> new parms w/o TMI & increase alpha to 0.0085:
     parms <-c(psi=0.5, KH=1, beta=0.0005,p=0.0005,m=0.00001,
               gamma=1,KI=20000,alpha=0.0085,KB=2000000,w=0.0005,z=0.001,
               r=6000,d=0.003,c=0.05,sigma=500000,TMD=TMD,TB=TB)
@@ -219,48 +227,54 @@ for (i in 1:length(temp_shifts$temp)){
   time_values<-cbind(toptshift=i,time_values)
   appendtimes<-rbind(time_values,appendtimes)
   
+  ###
   HIB_at_times<-data.frame()
-  #fullHIBrange<-data.frame()
   for (n in unique(output.df$temp)){
     Health <- subset(output.df, variable=="H")
     Immunity <- subset(output.df, variable=="I")
     Bacteria <- subset(output.df, variable=="B")
-    #HealthImmunityBacteria<-cbind(Health,Immunity,Bacteria,temp=n,toptshift=i
     
+    H <-Health[which((abs(Health$time-0.001369863)==min(abs(Health$time-0.001369863))) & Health$temp==n),]
+    I <-Immunity[which((abs(Immunity$time-0.001369863)==min(abs(Immunity$time-0.001369863))) & Health$temp==n),]
+    B <-Bacteria[which((abs(Bacteria$time-0.001369863)==min(abs(Bacteria$time-0.001369863))) & Health$temp==n),]
+    H_val<-H$value
+    I_val<-I$value
+    B_val<-B$value
+    times12<-cbind(H_val,I_val,B_val,time=12,temp=n,toptshift=i)
     
-    H <-which(abs(Health$value-0.001369863)==min(abs(Health$value-0.001369863)))
-    I <-which(abs(Immunity$value-0.001369863)==min(abs(Immunity$value-0.001369863)))
-    B <-which(abs(Bacteria$value-0.001369863)==min(abs(Bacteria$value-0.001369863)))
-    times12<-cbind(H,I,B,time=12,temp=n,toptshift=i)
-    #time_12hrs<-rbind(time_12hrs,times12)
+    H <-Health[which((abs(Health$time-0.002739726)==min(abs(Health$time-0.002739726))) & Health$temp==n),]
+    I <-Immunity[which((abs(Immunity$time-0.002739726)==min(abs(Immunity$time-0.002739726))) & Health$temp==n),]
+    B <-Bacteria[which((abs(Bacteria$time-0.002739726)==min(abs(Bacteria$time-0.002739726))) & Health$temp==n),]
+    H_val<-H$value
+    I_val<-I$value
+    B_val<-B$value
+    times24<-cbind(H_val,I_val,B_val,time=24,temp=n,toptshift=i)
     
-    H <-which(abs(Health$value-0.002739726)==min(abs(Health$value-0.002739726)))
-    I <-which(abs(Immunity$value-0.002739726)==min(abs(Immunity$value-0.002739726)))
-    B <-which(abs(Bacteria$value-0.002739726)==min(abs(Bacteria$value-0.002739726)))
-    times24<-cbind(H,I,B,time=24,temp=n,toptshift=i)
-    #time_24hrs<-rbind(time_24hrs,times24)
+    H <-Health[which((abs(Health$time-0.005479452)==min(abs(Health$time-0.005479452))) & Health$temp==n),]
+    I <-Immunity[which((abs(Immunity$time-0.005479452)==min(abs(Immunity$time-0.005479452)))& Health$temp==n),]
+    B <-Bacteria[which((abs(Bacteria$time-0.005479452)==min(abs(Bacteria$time-0.005479452)))& Health$temp==n),]
+    H_val<-H$value
+    I_val<-I$value
+    B_val<-B$value
+    times48<-cbind(H_val,I_val,B_val,time=48,temp=n,toptshift=i)
     
-    H <-which(abs(Health$value-0.005479452)==min(abs(Health$value-0.005479452)))
-    I <-which(abs(Immunity$value-0.005479452)==min(abs(Immunity$value-0.005479452)))
-    B <-which(abs(Bacteria$value-0.005479452)==min(abs(Bacteria$value-0.005479452)))
-    times48<-cbind(H,I,B,time=48,temp=n,toptshift=i)
-    #time_48hrs<-rbind(time_48hrs,times48)
-    
-    #merge all
+    #merge all to one data frame
     merged<-rbind(times12,times24, times48)
     HIB_at_times<-rbind(HIB_at_times,merged)
   }
   HIB_at_times_alltemps<-rbind(HIB_at_times_alltemps,HIB_at_times)
+  
 }
 
-#head(outputdataframetotals)
-
-#Modify data table to work with:
+#Modify data table to work with it more easily:
 appendtimes<-select(appendtimes,-2)
 appendtimes$toptshift <- (appendtimes$toptshift + 25.2)
 appendtimes<-rename(appendtimes, Optimal_Temp_of_Host_Immune_Gene_Expression=toptshift)
 head(appendtimes) #check
 
+###
+###############
+#Plot the outputs:
 appendtimes %>%
   ggplot(aes(x=Optimal_Temp_of_Host_Immune_Gene_Expression,y=daystoH50),group_by(temp))+
   geom_point()+geom_smooth(se=FALSE)+
@@ -271,7 +285,6 @@ appendtimes %>%
        subtitle="Environmental Temperature Ranges from 24-34°C",
        caption="Pathogen Thermal Optimum = 36°C")
 
-
 appendtimes %>%
   ggplot(aes(x=temp,y=daystoH50),group_by(Optimal_Temp_of_Host_Immune_Gene_Expression))+
   geom_point()+geom_smooth(se=FALSE)+
@@ -281,6 +294,29 @@ appendtimes %>%
        y="Days to 50% Health",x="Environmental Temperature (°C)",
        caption="Pathogen Thermal Optimum = 36°C")
        #subtitle="Environmental Temperature Ranges from 24-34°C")
+
+#### contour plot:
+#https://jkzorz.github.io/2020/02/29/contour-plots.html
+
+appendtimes %>%
+  ggplot(aes(x=Optimal_Temp_of_Host_Immune_Gene_Expression,y=temp))+
+  geom_raster(aes(fill=daystoH50))+
+  #geom_contour(aes(z=daystoH50),colour="white")+
+  labs(title="Effect of Topt Increase on Time to 50% Health",
+       y="Environmental Temperature (°C)",x="Optimal Host Temperature (°C)",
+       subtitle="Environmental Temperature Ranges from 24-34°C",
+       caption="Pathogen Thermal Optimum = 36°C",
+       fill="Time to 50% Health (days)")+
+  theme(legend.title = element_text(size = 10, face = "bold"), 
+        legend.position = "top", panel.background = element_blank(), 
+        axis.text = element_text(colour = "black", size = 10, face = "bold"), 
+        axis.title = element_text(size = 12, face = "bold"), 
+        legend.text = element_text(size = 11), legend.key = element_blank()) + 
+  scale_fill_continuous(low = "#BFE1B0", high = "#137177") + 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0)) 
+####
+
 
 ############
 Toptdiff<-cbind(appendtimes,Pathogen_Host_Topt_Diff=36-appendtimes$Optimal_Temp_of_Host_Immune_Gene_Expression)
@@ -295,6 +331,7 @@ Toptdiff %>%
        y="Days to 50% Health",x="Thermal Optimum Difference (Pathogen-Host, °C)",
        subtitle="Environmental Temperature Ranges from 24-34°C",
        caption="Pathogen Thermal Optimum = 36°C, Host Thermal Optimum Ranges from 26.2-33.2°C")
+
 Toptdiff %>%
   ggplot(aes(x=temp,y=daystoH50),group_by(Pathogen_Host_Topt_Diff))+
   geom_point()+geom_smooth(se=FALSE)+
@@ -305,6 +342,26 @@ Toptdiff %>%
        subtitle="Thermal Optimum Difference (Pathogen-Host, °C)",
        caption="Pathogen Thermal Optimum = 36°C, Host Thermal Optimum Ranges from 26.2-33.2°C")
 #subtitle="Environmental Temperature Ranges from 24-34°C")
+
+#contour plot:
+Toptdiff %>%
+  ggplot(aes(x=Pathogen_Host_Topt_Diff,y=temp))+
+  geom_raster(aes(fill=daystoH50))+
+  #geom_contour(aes(z=daystoH50),colour="white")+
+  labs(title="Effect of Topt Increase on Time to 50% Health",
+       y="Environmental Temperature (°C)",x="Thermal Optimum Difference (Pathogen-Host, °C)",
+       #subtitle="Environmental Temperature Ranges from 24-34°C",
+       caption="Pathogen Thermal Optimum = 36°C, Host Thermal Optimum Ranges from 26.2-33.2°C",
+       fill="Time to 50% Health (days)")+
+  theme(legend.title = element_text(size = 10, face = "bold"), 
+        legend.position = "top", panel.background = element_blank(), 
+        axis.text = element_text(colour = "black", size = 10, face = "bold"), 
+        axis.title = element_text(size = 12, face = "bold"), 
+        legend.text = element_text(size = 11), legend.key = element_blank()) + 
+  scale_fill_continuous(low = "#BFE1B0", high = "#137177") + 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0))
+
 ###########################################
 head(outputdataframetotals)
 
@@ -317,7 +374,8 @@ head(outputdataframetotals)
 all_H <- subset(outputdataframetotals, variable=="H", select = -variable)
 all_I <- subset(outputdataframetotals, variable=="I", select = -variable)
 all_B <- subset(outputdataframetotals, variable=="B", select = -variable)
-
+########
+#Host health:
 all_H %>% 
   ggplot(aes(x=time,y=value,color=temp,group=temp))+
   geom_point()+
@@ -333,7 +391,106 @@ all_H %>%
        subtitle="Thermal Optima Difference (Pathogen minus Host, °C)",
        caption="Pathogen Thermal Optimum = 36°C, Host Thermal Optimum Ranges from 26.2-33.2°C")+
   theme(legend.position = "bottom",legend.key.size = unit(0.4,"cm"))
-  
+
+####
+#contour plot:
+all_H %>%
+  ggplot(aes(x=Pathogen_Host_Topt_Diff,y=temp))+
+  geom_raster(aes(fill=value)) +#uses all Health values at all times
+  labs(title="Effect of Topt Increase on Health",
+       y="Environmental Temperature (°C)",x="Thermal Optimum Difference (Pathogen-Host, °C)",
+       #subtitle="Environmental Temperature Ranges from 24-34°C",
+       caption="Pathogen Thermal Optimum = 36°C, Host Thermal Optimum Ranges from 26.2-33.2°C",
+       fill="Health [at all times]")+
+  theme(legend.title = element_text(size = 10, face = "bold"), 
+        legend.position = "top", panel.background = element_blank(), 
+        axis.text = element_text(colour = "black", size = 10, face = "bold"), 
+        axis.title = element_text(size = 12, face = "bold"), 
+        legend.text = element_text(size = 11), legend.key = element_blank()) + 
+  scale_fill_continuous(low = "#BFE1B0", high = "#137177") + 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0))
+##
+head(HIB_at_times_alltemps)
+Health_for_btwnhost <- select(HIB_at_times_alltemps,-2,-3)
+
+Health_for_btwnhost$toptshift <- Health_for_btwnhost$toptshift +25.2 
+Health_for_btwnhost <- rename(Health_for_btwnhost,Optimal_Temp_of_Host_Immune_Gene_Expression=toptshift)
+Health_for_btwnhost<-subset(Health_for_btwnhost,time==24)
+head(Health_for_btwnhost)
+
+###
+Health_for_btwnhost %>%
+  ggplot(aes(x=Optimal_Temp_of_Host_Immune_Gene_Expression,y=temp))+
+  geom_raster(aes(fill=H_val)) +#uses all Health values at all times
+  labs(title="Effect of Increasing Host Thermal Optimum on Host Health",
+       y="Environmental Temperature (°C)",x="Optimal Temperature for Host Immune Gene Expression (°C)",
+       #subtitle="Environmental Temperature Ranges from 24-34°C",
+       caption="Pathogen Thermal Optimum = 36°C \n Host Thermal Optimum Ranges from 26.2-33.2°C",
+       fill="Health at 24hrs")
+
+
+Health_48hrs <- select(HIB_at_times_alltemps,-2,-3)
+Health_48hrs$toptshift <- Health_48hrs$toptshift +25.2 
+Health_48hrs <- rename(Health_48hrs,Optimal_Temp_of_Host_Immune_Gene_Expression=toptshift)
+Health_48hrs<-subset(Health_48hrs,time==48)
+head(Health_48hrs)
+
+Health_48hrs %>%
+  ggplot(aes(x=Optimal_Temp_of_Host_Immune_Gene_Expression,y=temp))+
+  geom_raster(aes(fill=H_val)) +#uses all Health values at all times
+  labs(title="Effect of Increasing Host Thermal Optimum on Host Health",
+       y="Environmental Temperature (°C)",x="Optimal Temperature for Host Immune Gene Expression (°C)",
+       #subtitle="Environmental Temperature Ranges from 24-34°C",
+       caption="Pathogen Thermal Optimum = 36°C \n Host Thermal Optimum Ranges from 26.2-33.2°C",
+       fill="Health at 48hrs")
+
+#Thermal optima differences - contour plot for health at 24 and 48 hours post infection
+Health24hrs_toptdiff<-cbind(Health_for_btwnhost,Pathogen_Host_Topt_Diff=36-Health_for_btwnhost$Optimal_Temp_of_Host_Immune_Gene_Expression)
+head(Health24hrs_toptdiff)
+
+Health24hrs_toptdiff %>%
+  ggplot(aes(x=Pathogen_Host_Topt_Diff,y=temp))+
+  geom_raster(aes(fill=H_val)) +#uses all Health values at all times
+  labs(title="Host-Pathogen Thermal Optima Differences vs. Host Health",
+       y="Environmental Temperature (°C)",x="Thermal Optimum Difference (Pathogen-Host, °C)",
+       #subtitle="Environmental Temperature Ranges from 24-34°C",
+       caption="Pathogen Thermal Optimum = 36°C \n Host Thermal Optimum Ranges from 26.2-33.2°C",
+       fill="Health at 24hrs")
+
+Health_48hrs_toptdiff <-cbind(Health_48hrs,Pathogen_Host_Topt_Diff=36-Health_48hrs$Optimal_Temp_of_Host_Immune_Gene_Expression)
+head(Health_48hrs_toptdiff)
+
+Health_48hrs_toptdiff %>%
+  ggplot(aes(x=Pathogen_Host_Topt_Diff,y=temp))+
+  geom_raster(aes(fill=H_val)) +#uses all Health values at all times
+  labs(title="Host-Pathogen Thermal Optima Differences vs. Host Health",
+       y="Environmental Temperature (°C)",x="Thermal Optimum Difference (Pathogen-Host, °C)",
+       #subtitle="Environmental Temperature Ranges from 24-34°C",
+       caption="Pathogen Thermal Optimum = 36°C \n Host Thermal Optimum Ranges from 26.2-33.2°C",
+       fill="Health at 48hrs")
+
+##################################
+#change in health over time = health at time 0 - health at time 48
+
+head(HIB_at_times_alltemps)
+deltavalues<-data.frame()
+deltavalues_alltoptshifts<-data.frame()
+for (w in unique(HIB_at_times_alltemps$toptshift)){
+  #health at time zero = 1 for all cases in model
+  deltavalues<-data.frame()
+  for (q in unique(HIB_at_times_alltemps$temp)){
+   Hat24<-subset(HIB_at_times_alltemps, time==24 & toptshift==w & temp==q)
+   H24val<-Hat24$H_val
+  }
+  deltavalues<-cbind(deltavalue=1-H24val,temp=q,toptshift=w)
+  deltavalues_alltoptshifts<-rbind(deltavalues_alltoptshifts,deltavalues)
+}
+deltavalues_alltoptshifts
+H24val
+#this needs fixed^^^ not getting the correct output
+
+#####  
 all_I %>% 
   ggplot(aes(x=time,y=value,color=temp,group=temp))+
   geom_point()+
@@ -555,7 +712,13 @@ write.xlsx(paramdfall, file = "Temp_dependent_params_withinhost_Decchanges_with_
 ###########################################################################
 ###########################################################################
 ###########################################################################
+head(HIB_at_times_alltemps)
+Health_for_btwnhost <- select(HIB_at_times_alltemps,-2,-3)
 
+Health_for_btwnhost$toptshift <- Health_for_btwnhost$toptshift +25.2 
+Health_for_btwnhost <- rename(Health_for_btwnhost,Optimal_Temp_of_Host_Immune_Gene_Expression=toptshift)
+Health_for_btwnhost<-subset(Health_for_btwnhost,time==24)
+head(Health_for_btwnhost)
 ##################### SECTION 2: BETWEEN HOST MODEL #######################
 
 # clear workspace
@@ -617,7 +780,7 @@ gausfit<-nls_multstart(Mean_eggs~gaussian_1987(temp = Temp, rmax, topt, a),
                        convergence_count = FALSE)
 summary(gausfit)
 #parms<-calc_params(gausfit)
-coeff_list<-coeffs(gausfit)
+coeff_list<-coefficients(gausfit)
 
 Repro_rmax<-coeff_list[[1]]
 Repro_topt<-coeff_list[[2]]
