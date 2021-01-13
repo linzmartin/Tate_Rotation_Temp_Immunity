@@ -231,10 +231,10 @@ head(output.df)
 as.data.frame(output.df)
 ##################
 #save data frame (modify name of file as needed)
-write.xlsx(output.df, file = "HIB_within_host_model_output_OG+8C+conserv_better_I.xlsx",
+write.xlsx(as.data.frame(output.df), file = "HIB_within_host_model_output_OG+8C+conserv_better_I.xlsx",
           sheetName = "1", append = FALSE,row.names = FALSE)
 
-write.xlsx(output.df, file = "HIB_within_host_model_output_+No_shift+conserv_better_I+No_TMI.xlsx",
+write.xlsx(as.data.frame(output.df), file = "HIB_within_host_model_output_+No_shift+conserv_better_I+No_TMI.xlsx",
           sheetName = "1", append = FALSE,row.names = FALSE)
 ###########################################
 #then plot models on graph
@@ -319,7 +319,7 @@ as.data.frame(output.df.long)
 
 ##################
 #save data frame
-write.xlsx(output.df.long, file = "HIB_within_host_model_output_longversion.xlsx",
+write.xlsx(as.data.frame(output.df.long), file = "HIB_within_host_model_output_longversion.xlsx",
            sheetName = "1", append = FALSE,row.names = FALSE)
 #####################################
 
@@ -351,10 +351,10 @@ write.xlsx(paramdf, file = "Temp_dependent_params_withinhost_Decchanges.xlsx",
 ##################### SECTION 2: BETWEEN HOST MODEL ########################
 
 #import the data
-withinhostmodeldata <- read.xlsx("HIB_within_host_model_output_longversion.xlsx") #import within host model HIB data
+withinhostmodeldata <- read_xlsx("HIB_within_host_model_output_longversion.xlsx") #import within host model HIB data
 Health <- subset(withinhostmodeldata, variable=="H") #subset to only get health variable
 
-tempparamdata<-read.xlsx("Temp_dependent_params_withinhost_Decchanges.xlsx") #import Temp param data
+tempparamdata<-read_xlsx("Temp_dependent_params_withinhost_Decchanges.xlsx") #import Temp param data
 
 Repro_data <- read_xlsx("Tcast_reproduction_Park1948data.xlsx") #reproduction v. temp data (Park 1948)
 ###########################################
@@ -407,6 +407,37 @@ coeff_list<-coef(gausfit)
 Repro_rmax<-coeff_list[[1]]
 Repro_topt<-coeff_list[[2]]
 Repro_a<-coeff_list[[3]]
+####################################
+#incorporate temp dependent parameter for spore germination TG
+Ratkowsky_germination <- function(temp, Tmin, Tmax, a,b){
+  rate <- (a*(temp-Tmin)*(1-exp(b*(temp-Tmax))))^2
+  return(rate)
+}
+
+Germination_data <- read.csv("Knaysi_1964_Fig1_Graph_grabber_data.csv", stringsAsFactors = FALSE) 
+######
+ratkowsky_germ_fit <-nls_multstart(Percent_Dark_Spores~ratkowsky_1983(temp = Temperature, tmin, tmax, a, b),
+                                   data = Germination_data,
+                                   iter = c(4,4,4,4),
+                                   start_lower = get_start_vals(Germination_data$Temperature, Germination_data$Percent_Dark_Spores, model_name = 'ratkowsky_1983') - 10,
+                                   start_upper = get_start_vals(Germination_data$Temperature, Germination_data$Percent_Dark_Spores, model_name = 'ratkowsky_1983') + 10,
+                                   lower = get_lower_lims(Germination_data$Temperature, Germination_data$Percent_Dark_Spores, model_name = 'ratkowsky_1983'),
+                                   upper = get_upper_lims(Germination_data$Temperature, Germination_data$Percent_Dark_Spores, model_name = 'ratkowsky_1983'),
+                                   supp_errors = 'Y',
+                                   convergence_count = FALSE)
+summary(ratkowsky_germ_fit)
+
+coeff_list<-coeffs(ratkowsky_germ_fit)
+coeff_list
+Germ_tmin<-coeff_list[[1]]
+Germ_tmax<-coeff_list[[2]]
+Germ_a<-coeff_list[[3]]
+Germ_b<-coeff_list[[4]]
+
+
+all_germ_params<-calc_params(ratkowsky_germ_fit)
+germination_rmax<-all_germ_params[[1]]
+germination_rmax
 
 #################################################
 #3 compartment between host model:
@@ -428,15 +459,15 @@ SIS_between_host_model_with_compartmentP<- function (t, x, params) {
   mu<-params["mu"]
   TB<-params["TB"] #bacterial growth rate fraction (from within host / Ratkowsky models)
   TR<-params["TR"]
-  #t50<-params["t50"]
-  #Hat24<-params["Hat24"]
+  Hat24<-params["Hat24"]
+  TG<-params["TG"]
   
   #model equations
   #better ODEs for model:
-  dSdt <- TR*r*(1-(S+I)/K)-(beta*S*P)+(gamma*I)-(d*S) #susceptible beetles
-  dIdt <- (beta*S*P)-(gamma*I)-((d+delta)*I) #infected beetles
-  dPdt <- (g*TB*(d+delta)*I)-(mu*P) #compartment P = beetles that are dead and producing spores
-
+  dSdt <- TR*r*(1-(S+I)/K)-(beta*S*P*TG)+(gamma*I)-(d*S) #susceptible beetles
+  dIdt <- (beta*S*P*TG)-(gamma*I)-((d+delta*Hat24)*I) #infected beetles
+  dPdt <- (g*TB*(d+delta*Hat24)*I)-(mu*P) #compartment P = beetles that are dead and producing spores
+  
   dndt <- c(dSdt,dIdt,dPdt)
   list(dndt) #must be list format
 }
@@ -453,13 +484,16 @@ for (i in 1:length(paramtable$Temp)){
   Repro_rate_at_T<-Repro_gaussian(temp=paramtable[i,2],rmax=Repro_rmax,topt=Repro_topt,a=Repro_a)
   TR <- (Repro_rate_at_T/Repro_rmax)
   
+  Germ_rate_at_T <- Ratkowsky_germination(temp=paramtable[i,2],Tmin=Germ_tmin,Tmax=Germ_tmax,a=Germ_a,b=Germ_b)
+  TG <- (Germ_rate_at_T/germination_rmax)
+  
   xstart<-c(S=100,I=100,P=0) #start with 100 individuals in each compartment
   times<-seq(0,300,by=1) #300 days, by 1 day
   
-  parms <- c (#t50=t50,
+  parms <- c(#t50=t50,
               beta=0.008, #Beta = contact rate * transmission probability
                 #Beta = % of cases from overall pop that result in infection
-              gamma=0.8*Hat24, #gamma = 1/(duration of infectious period)
+              gamma=0.1, #gamma = 1/(duration of infectious period)
               d=0.0005,#natural death rate
               delta=0.0005, #additional death rate due to infection
               r=0.8,#reproductive rate of susceptible beetles
@@ -468,7 +502,10 @@ for (i in 1:length(paramtable$Temp)){
               #Kp=1000, #carrying capacity of spores per infected beetle
               mu=0.05, #decay of dead beetles producing spores
               TB = TB,#fraction of Topt bacterial growth
-              TR = TR) #fraction of Topt T. castaneum reproduction rate
+              TR = TR, #fraction of Topt T. castaneum reproduction rate
+              TG = TG,
+              Hat24 = Hat24)
+  
   
   #run model at each temp w/ parameters
   ode(
@@ -500,10 +537,10 @@ as.data.frame(SIP_output.df)
 
 ##################
 #save data frame to excel spreadsheet in working directory:
-write.xlsx(SIP_output.df, file = "SIP_3compartment_between_host_model_output.xlsx",
+write.xlsx(as.data.frame(SIP_output.df), file = "SIP_3compartment_between_host_model_output.xlsx",
            sheetName = "1", append = FALSE,row.names = FALSE)
 
-write.xlsx(gammaval_output, file="Temp_dependent_gamma_values_between_host_model.xlsx",
+write.xlsx(as.data.frame(gammaval_output), file="Temp_dependent_gamma_values_between_host_model.xlsx",
            sheetName = "1", append = FALSE,row.names = FALSE)
 
 SIP_subset<-subset(SIP_output.df,variable=="S"|variable=="I")
