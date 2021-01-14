@@ -18,6 +18,7 @@ library(tidyr)
 library(nlstools)
 library(deSolve)
 library(xlsx)
+library(DescTools)
 #library(reshape2)
 #library(metR)
 #############################
@@ -413,7 +414,9 @@ all_H %>%
        caption="Pathogen Thermal Optimum = 36°C, Host Thermal Optimum Ranges from 26.2-33.2°C")+
   theme(legend.position = "bottom",legend.key.size = unit(0.4,"cm"))
 
-####
+##################################
+#Health:
+
 #contour plot:
 #health at all times (not super informative)
 all_H %>% 
@@ -539,6 +542,7 @@ deltavalues_alltoptshifts %>%
 
 
 ####################################
+#Immunity:
 all_I %>% 
   ggplot(aes(x=time,y=value,color=temp,group=temp))+
   geom_point()+
@@ -590,6 +594,7 @@ Immunity_time48 %>%
        fill="Host Immunity \nat 48hrs")
 
 ####################################
+#Bacteria:
 all_B %>% 
   ggplot(aes(x=time,y=value,color=temp,group=temp))+
   geom_point()+
@@ -651,6 +656,32 @@ all_max_B_values %>%
        #subtitle="Environmental Temperature Ranges from 24-34°C",
        caption="Pathogen Thermal Optimum = 36°C \nHost Thermal Optimum Ranges from 26.2-33.2°C",
        fill="Max Bacterial Load")
+
+####
+#the area under the curve for bacterial growth over time:
+all_AUC_values <- data.frame()
+for (i in unique(all_B$Pathogen_Host_Topt_Diff)){
+  subset_topt <- subset(all_B, Pathogen_Host_Topt_Diff==i)
+  AUC_values <- data.frame()
+  for (j in unique(all_B$temp)){
+    subset_temp <- subset(subset_topt, subset_topt$temp==j)
+  
+    aucval<-AUC(x=subset_temp$time,y=subset_temp$value)
+  
+    AUC_values <- cbind(aucval,Toptdiff=i,temp=j)
+    AUC_values<-as.data.frame(AUC_values)
+    all_AUC_values<-rbind(all_AUC_values,AUC_values)
+  }
+}
+
+all_AUC_values %>%
+  ggplot(aes(x=Toptdiff,y=temp))+
+  geom_raster(aes(fill=aucval))+
+  labs(title="Effects of Host-Pathogen Thermal Optima\nDifferences on Bacterial Population Growth\nOver Time (Area Under Curve)",
+       y="Environmental Temperature (°C)",x="Thermal Optimum Difference (Pathogen-Host, °C)",
+       caption="Pathogen Thermal Optimum = 36°C \nHost Thermal Optimum Ranges from 26.2-33.2°C",
+       fill="Area Under Curve")
+
 #######################################################################
 #######################################################################
 #######################################################################
@@ -666,7 +697,7 @@ write.xlsx(paramdfall, file = "Temp_dependent_params_withinhost_Decchanges_with_
 ##################### SECTION 2: BETWEEN HOST MODEL ########################
 
 #import the data
-#also using data tables above from section 1 (don't clear ls)
+#also using data tables above from section 1 (don't clear ls!!!)
 Health <- Health_for_btwnhost
 Repro_data <- read_xlsx("Tcast_reproduction_Park1948data.xlsx") #reproduction v. temp data (Park 1948)
 Germination_data <- read.csv("Knaysi_1964_Fig1_Graph_grabber_data.csv", stringsAsFactors = FALSE) 
