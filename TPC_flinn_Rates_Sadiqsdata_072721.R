@@ -22,42 +22,12 @@ library(tidyr)
 library(nlstools)
 #############################
 #import the data and remove NAs
-Gene_data <- read_xlsx("Gene_temp_data.xlsx", sheet="Rate_Data") #Emily's data
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_072721.xlsx",sheet="Immune_Rate_Data")#using Sadiq's new data
+#Gene_data <- read_xlsx("Gene_temp_data.xlsx", sheet="Rate_Data") #Emily's data
 # lookinga at Rate vs. temp vs. treatment
 # this is condensed data from Emily's work - find in my box folder
-Gene_data<-na.omit(Gene_data) #remove NAs first
+#Gene_data<-na.omit(Gene_data) #remove NAs first
 ###################################
-
-Gene_exp_means <- group_by(Gene_data,Gene,Rate_Type,Temp) %>%
-  summarise(
-    count = n(),
-    mean = mean(Rate, na.rm = TRUE),
-    sd = sd(Rate, na.rm = TRUE),
-    median = median(Rate, na.rm = TRUE),
-    IQR = IQR(Rate, na.rm = TRUE)
-  )
-Gene_exp_means
-
-Cactus_means <- filter(Gene_exp_means, Gene=="Cactus")
-
-ggplot(Gene_exp_means, aes(Temp, mean, shape=factor(Gene))) +
-  geom_point(aes(colour = factor(Rate_Type)),size=4) +
-  facet_grid(~Gene,labeller=label_both)+
-  geom_point(colour = "black",size=1.5) +
-  labs(title="Immune Gene Expression in T. castaneum",
-       y="Rate of Expression (ddCT/time))",
-       x="Temperature (ºC)") +
-  scale_x_continuous(breaks=c(20,22,24,26,28,30,32,34))
-
-ggplot(Cactus_means, aes(Temp, mean)) +
-  #geom_point(aes(colour = factor(Rate_Type)),size=4) +
-  geom_point(colour = "black",size=1.5) +
-  labs(title="Cactus Gene Expression in T. castaneum",
-       y="Rate of Expression (ddCT/time))",
-       x="Temperature (ºC)") +
-  scale_x_continuous(breaks=c(20,22,24,26,28,30,32,34))
-
-
 #Run the Flinn model by treatment group
 
 #use nls_multstart()
@@ -82,11 +52,13 @@ fits <- Gene_data %>%
 
 head(fits)
 fits$fit[[1]]
-fits$fit[[2]]
+#fits$fit[[2]]
 #microbe dependent parameters
 #a<- 8.39988
 #b<- -0.73107
 #c<- 0.01452
+
+
 ###############
 #Gaussian 
 
@@ -110,20 +82,20 @@ fits <- Gene_data %>%
 # look at output object - should show a nls fit column & data tibble column by grouping
 select(fits, data, fit) 
 
-constit_topt <- calc_params(fits$fit[[1]]) %>% select(topt)
-constit_topt <- as.numeric(constit_topt)
-induced_topt <- calc_params(fits$fit[[2]]) %>% select(topt)
+#constit_topt <- calc_params(fits$fit[[1]]) %>% select(topt)
+#constit_topt <- as.numeric(constit_topt)
+induced_topt <- calc_params(fits$fit[[1]]) %>% select(topt)
 induced_topt <- as.numeric(induced_topt)
 
 
 #check the first fit to see if it worked
 summary(fits$fit[[1]])
-summary(fits$fit[[2]])
+#summary(fits$fit[[2]])
 fits$fit[[1]]
-fits$fit[[2]]
+#fits$fit[[2]]
 
 glance(fits$fit[[1]])
-glance(fits$fit[[2]])
+#glance(fits$fit[[2]])
 
 
 ## clean up:

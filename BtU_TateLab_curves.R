@@ -21,6 +21,9 @@ library(nlstools)
 BtU_temp_data <- read_xlsx("Btu_in_vitro_growthData_30_24_Lindsay.xlsx")
 #############
 
+BtU_temp_data <- read_xlsx("Btu_in_vitro_growthData_30_24_Lindsay.xlsx",sheet="Sheet2")
+ggplot(BtU_temp_data,aes(temp,`avg r`))+
+  geom_point(size=4)
 
 ggplot(BtU_temp_data, aes(temperature, r)) +
   geom_point(aes(colour = factor(temperature)),size=4) +
@@ -28,12 +31,12 @@ ggplot(BtU_temp_data, aes(temperature, r)) +
   geom_point(colour = "grey90",size=1.5) +
   labs(title="BtMid Expression")
 
-meanfoldchange<-
+meanr<-
   aggregate(x=BtU_temp_data$r,
             by=list(BtU_temp_data$temperature),
             FUN=mean)
-colnames(meanfoldchange)<- c("temperature", "r") #restore column names
-meanfoldchange
+colnames(meanr)<- c("temperature", "r") #restore column names
+meanr
 ################
 #ratkowsky_1983()
 #rate = ((a.(temp - tmin)).(1 - exp(b.(temp - tmax))))^2

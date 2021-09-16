@@ -1,11 +1,11 @@
 #BtMid TPC
 
+# clear workspace
+rm(list = ls())
+
+#load libraries:
 library(readxl)
 library(ggplot2)
-
-#remotes::install_github("padpadpadpad/rTPC")
-#install.packages("nls.multstart")
-
 library(rTPC)
 library(nls.multstart)
 library(broom)
@@ -14,7 +14,6 @@ library(tidyverse)
 library(purrr)
 library(dplyr)
 library(tidyr)
-#install.packages("nlstools")
 library(nlstools)
 #############################
 #import the data

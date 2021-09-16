@@ -1,3 +1,10 @@
+############################
+#Code written by Sadiq, with my edits
+#############################
+# clear workspace
+rm(list = ls())
+
+
 #load necessary packages
 library(survival)
 library(multcomp)
@@ -14,14 +21,21 @@ library(openxlsx)
 library(readxl)
 #############survival
 #read in file using import in Rstudio
-mydata<- read.xlsx("Survival_data.xlsx")
-#mydata<- X2020_09_29temperature_bt_infection #file name has an X in the beginning
+
+#choose 1 of the following data sources:
+#mydata<- read.xlsx("Survival_data.xlsx") #this is data for Sadiq's experiment 1
+        #mydata<- X2020_09_29temperature_bt_infection #file name has an X in the beginning
+
+mydata<- read.xlsx("2021-2-22_btu_temperature_survival_exp-2.xlsx") #data for Sadiq's second experiment
+##############################
 attach(mydata) #attach data to be able to call columns directly
 summary(mydata) #overview to check if data was read in correctly
 hours <- as.numeric(hours)
 status <-as.numeric(status)
 temp <-as.factor(temp)
 sex<-as.factor(sex)
+
+
 #plot survival curves
 
 fit<-survfit(Surv(hours,status)~treatment+temp)
@@ -38,6 +52,15 @@ legend("bottomleft",                              #placement of legend
        lty=c(1,1,1,1,2),cex=0.9,lwd=2,bty="n",    #line types, text size, line width
        col=c("cornflowerblue","darkgoldenrod","red","black","black")) #colors
 
+fitsumm<-summary(fit)
+fitsumm
+
+#extract median survival times:
+library(survminer)
+surv_median(fit)
+med_surv_times_extract_df<-as.data.frame(surv_median(fit))
+
+#################################################################
 ####survival curves without IS control and seperate for both sexes
 
 #create new data subset
