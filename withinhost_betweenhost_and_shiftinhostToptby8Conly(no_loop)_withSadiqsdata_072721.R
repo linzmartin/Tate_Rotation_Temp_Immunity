@@ -27,6 +27,7 @@ library(tidyr)
 library(nlstools)
 library(deSolve)
 library(xlsx)
+library(nlsMicrobio)
 #############################
 
 #################### Section 1: within-host model #####################

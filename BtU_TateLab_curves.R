@@ -18,18 +18,21 @@ library(nlstools)
 ############################
 #d <- read.table("Btu_in_vitro_growthData_30_24_Lindsay.csv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 #bacterial logisitc growth: K / (1 + ((K - N0) / N0) * exp(-r * t))
-BtU_temp_data <- read_xlsx("Btu_in_vitro_growthData_30_24_Lindsay.xlsx")
+#BtU_temp_data <- read_xlsx("Btu_in_vitro_growthData_30_24_Lindsay.xlsx")
+
+BtU_temp_data <- read_xlsx("btu_ivg_growth_rate_Sadiq_011022.xlsx")
+
 #############
 
-BtU_temp_data <- read_xlsx("Btu_in_vitro_growthData_30_24_Lindsay.xlsx",sheet="Sheet2")
-ggplot(BtU_temp_data,aes(temp,`avg r`))+
+#BtU_temp_data <- read_xlsx("Btu_in_vitro_growthData_30_24_Lindsay.xlsx",sheet="Sheet2")
+ggplot(BtU_temp_data,aes(temperature,r))+
   geom_point(size=4)
 
 ggplot(BtU_temp_data, aes(temperature, r)) +
   geom_point(aes(colour = factor(temperature)),size=4) +
   geom_smooth(mapping=aes(x=temperature,y=r)) +
   geom_point(colour = "grey90",size=1.5) +
-  labs(title="BtMid Expression")
+  labs(title="BtU in vitro growth rates")
 
 meanr<-
   aggregate(x=BtU_temp_data$r,
@@ -42,7 +45,7 @@ meanr
 #rate = ((a.(temp - tmin)).(1 - exp(b.(temp - tmax))))^2
 
 fit <- nls_multstart(r~ratkowsky_1983(temp = temperature, tmin, tmax, a, b),
-                     data = meanfoldchange,
+                     data = BtU_temp_data,
                      iter = c(4,4,4,4),
                      start_lower = get_start_vals(BtU_temp_data$temperature, BtU_temp_data$r, model_name = 'ratkowsky_1983') - 10,
                      start_upper = get_start_vals(BtU_temp_data$temperature, BtU_temp_data$r, model_name = 'ratkowsky_1983') + 10,

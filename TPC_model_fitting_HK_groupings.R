@@ -24,7 +24,17 @@ library(ggrepel)
 library(MuMIn)
 #############################
 #import the data
-Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_081221(new).xlsx",sheet="Immune_Rate_Data")#using Sadiq's new data
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011022.xlsx",sheet="Sheet1")#using Sadiq's new data
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011022.xlsx",sheet="Sheet2")#using Sadiq's new data, rates averaged by sex
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011722.xlsx",sheet="Sheet1")#using Sadiq's new data
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011722.xlsx",sheet="Sheet2")#using Sadiq's new data, rates averaged by sex
+
+
+
+#Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_081221(new).xlsx",sheet="Immune_Rate_Data")#using Sadiq's new data
 Gene_data <- Gene_data[complete.cases(Gene_data),]
 # looking at rate of gene expression change (delta ddct2 / time) vs. temp vs. treatment
 ##################################
@@ -212,9 +222,9 @@ d_ic
 ######################################################################
 #separate HeatKilled Data by gene type:
 
-positive_regulators <- filter(HeatKilled,Gene=="PGRPSC2"|Gene=="Relish2"|Gene=="Def1dg2")
-negative_regulators <- filter(HeatKilled,Gene=="Cactus1")
-other_genes <- filter(HeatKilled,Gene=="hsp27")
+positive_regulators <- filter(HeatKilled,Gene=="pgrpsc2"|Gene=="Relish2"|Gene=="Def1dg2"|Gene=="Att1")
+negative_regulators <- filter(HeatKilled,Gene=="Cactus")
+other_genes <- filter(HeatKilled,Gene=="HSP27")
 
 #now, fit models for each gene within the Heat Killed treatment group:
 

@@ -24,29 +24,20 @@ library(tidyr)
 library(nlstools)
 #############################
 #import the data
-Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_081221(new).xlsx",sheet="Immune_Rate_Data")#using Sadiq's new data
+#Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_081221(new).xlsx",sheet="Immune_Rate_Data")#using Sadiq's new data
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011022.xlsx",sheet="Sheet1")#using Sadiq's new data
+
+
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011722.xlsx",sheet="Sheet1")#using Sadiq's new data
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011722.xlsx",sheet="Sheet2")#using Sadiq's new data, rates averaged by sex
+
 
 # looking at rate of gene expression change (delta ddct2 / time) vs. temp vs. treatment
 ##################################
 #Plot the data to view the general trends for Treatment across temperatures
-ggplot(Gene_data, aes(Temp, Rate, shape=factor(Treatment))) +
-  geom_point(aes(colour = factor(Treatment)),size=4) +
-  geom_point(colour = "black",size=1.5) +
-  labs(title="Immune Gene Expression in T. castaneum",
-       y="Rate of Expression (ddCT2/time))",
-       x="Temperature (ºC)") +
-  scale_x_continuous(breaks=c(20,22,24,26,28,30,32,34))
-  #scale_x_discrete(limits=c(20,24,30,34), position="bottom")
-
-ggplot(Gene_data, aes(Temp, Rate, shape=factor(Gene))) +
-  geom_point(aes(colour = factor(Treatment)),size=4) +
-  geom_point(colour = "black",size=1.5) +
-  labs(title="Immune Gene Expression in T. castaneum",
-       y="Rate of Expression (ddCT2/time))",
-       x="Temperature (ºC)") +
-  scale_x_continuous(breaks=c(20,22,24,26,28,30,32,34))
-#scale_x_discrete(limits=c(20,24,30,34), position="bottom")
-
 ggplot(Gene_data, aes(Temp, Rate, shape=factor(Gene))) +
   geom_point(aes(colour = factor(Treatment)),size=4) +
   geom_point(colour = "black",size=1.5) +

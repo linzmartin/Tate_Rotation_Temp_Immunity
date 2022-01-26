@@ -24,7 +24,19 @@ library(ggrepel)
 library(MuMIn)
 #############################
 #import the data
-Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_081221(new).xlsx",sheet="Immune_Rate_Data")#using Sadiq's new data
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011022.xlsx",sheet="Sheet1")#using Sadiq's new data
+
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011022.xlsx",sheet="Sheet2")#using Sadiq's new data, rates averaged by sex
+
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011722.xlsx",sheet="Sheet1")#using Sadiq's new data
+
+Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_011722.xlsx",sheet="Sheet2")#using Sadiq's new data, rates averaged by sex
+
+
+#Gene_data <- read_xlsx("Gene_exp_rates_Sadiq_081221(new).xlsx",sheet="Immune_Rate_Data")#using Sadiq's new data
 Gene_data <- Gene_data[complete.cases(Gene_data),]
 # looking at rate of gene expression change (delta ddct2 / time) vs. temp vs. treatment
 ##################################
@@ -211,11 +223,12 @@ d_ic
 ######################################################################
 ######################################################################
 #separate HeatKilled Data by gene:
-Cactus1_exp <- filter(HeatKilled, Gene == "Cactus1")
+Cactus1_exp <- filter(HeatKilled, Gene == "Cactus")
 Relish2_exp <- filter(HeatKilled, Gene == "Relish2")
-PGRPSC2_exp <- filter(HeatKilled, Gene == "PGRPSC2")
+PGRPSC2_exp <- filter(HeatKilled, Gene == "pgrpsc2")
 Defensin1dg2_exp <- filter(HeatKilled, Gene == "Def1dg2")
-Hsp27_exp <- filter(HeatKilled, Gene == "hsp27")
+Hsp27_exp <- filter(HeatKilled, Gene == "HSP27")
+Attacin_exp <- filter(HeatKilled, Gene == "Att1")
 
 #now, fit models for each gene within the Heat Killed treatment group:
 
@@ -223,15 +236,15 @@ Hsp27_exp <- filter(HeatKilled, Gene == "hsp27")
 Gene_fits <- Defensin1dg2_exp %>%
   group_by(., Treatment) %>%
   nest() %>%
-  mutate(flinn = purrr::map(data, ~nls_multstart(Rate~flinn_1991(temp = Temp, a, b, c),
-                                                 data = .x,
-                                                 iter = c(5,5,5),
-                                                 start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'flinn_1991') - 10,
-                                                 start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'flinn_1991') + 10,
-                                                 lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'flinn_1991'),
-                                                 upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'flinn_1991'),
-                                                 supp_errors = 'Y',
-                                                 convergence_count = FALSE)),
+  mutate(#flinn = purrr::map(data, ~nls_multstart(Rate~flinn_1991(temp = Temp, a, b, c),
+          #                                       data = .x,
+           #                                      iter = c(5,5,5),
+            #                                     start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'flinn_1991') - 10,
+             #                                    start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'flinn_1991') + 10,
+              #                                   lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'flinn_1991'),
+               #                                  upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'flinn_1991'),
+                #                                 supp_errors = 'Y',
+                 #                                convergence_count = FALSE)),
          briere2 = purrr::map(data, ~nls_multstart(Rate~briere2_1999(temp = Temp, tmin, tmax, a,b),
                                                    data = .x,
                                                    iter = c(4,4,4,4),
@@ -309,7 +322,7 @@ label_facets_num <- function(string){
 ## clean up:
 # stack models
 d_stack <- select(Gene_fits, -data) %>%
-  pivot_longer(., names_to = 'model_name', values_to = 'fit', flinn:spain)
+  pivot_longer(., names_to = 'model_name', values_to = 'fit', briere2:spain)
 d_stack
 
 new_preds <- Defensin1dg2_exp %>%
@@ -650,15 +663,15 @@ Gene_fits <- PGRPSC2_exp %>%
                                                     upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'gaussian_1987'),
                                                     supp_errors = 'Y',
                                                     convergence_count = FALSE)),
-         modifiedgaussian = purrr::map(data, ~nls_multstart(Rate~modifiedgaussian_2006(temp = Temp, rmax, topt, a, b),
-                                                            data = .x,
-                                                            iter = c(4,4,4,4),
-                                                            start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006') - 10,
-                                                            start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006') + 10,
-                                                            lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006'),
-                                                            upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006'),
-                                                            supp_errors = 'Y',
-                                                            convergence_count = FALSE)),
+         #modifiedgaussian = purrr::map(data, ~nls_multstart(Rate~modifiedgaussian_2006(temp = Temp, rmax, topt, a, b),
+          #                                                  data = .x,
+           #                                                 iter = c(4,4,4,4),
+            #                                                start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006') - 10,
+             #                                               start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006') + 10,
+              #                                              lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006'),
+               #                                             upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006'),
+                #                                            supp_errors = 'Y',
+                 #                                           convergence_count = FALSE)),
          quadratic = purrr::map(data, ~nls_multstart(Rate~quadratic_2008(temp = Temp, a, b, c),
                                                      data = .x,
                                                      iter = c(4,4,4),
@@ -860,6 +873,128 @@ ggplot() +
   labs(x = 'Temperature (ºC)',
        y = 'Rate of Gene Expression',
        title = 'HSP27 Expression vs. Temp \nin Heat Killed Treatment') +
+  geom_hline(aes(yintercept = 0), linetype = 2) +
+  scale_color_brewer(type = 'qual', palette = 2)
+
+d_ic <- d_stack %>%
+  mutate(., info = map(fit, glance),
+         AICc =  map_dbl(fit, MuMIn::AICc)) %>%
+  select(-fit) %>%
+  unnest(info) %>%
+  select(model_name, sigma, AIC, AICc, BIC, df.residual)
+d_ic
+
+#####
+#Attacin expression
+
+Gene_fits <- Attacin_exp %>%
+  group_by(., Treatment) %>%
+  nest() %>%
+  mutate(flinn = purrr::map(data, ~nls_multstart(Rate~flinn_1991(temp = Temp, a, b, c),
+                                                 data = .x,
+                                                 iter = c(5,5,5),
+                                                 start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'flinn_1991') - 10,
+                                                 start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'flinn_1991') + 10,
+                                                 lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'flinn_1991'),
+                                                 upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'flinn_1991'),
+                                                 supp_errors = 'Y',
+                                                 convergence_count = FALSE)),
+         briere2 = purrr::map(data, ~nls_multstart(Rate~briere2_1999(temp = Temp, tmin, tmax, a,b),
+                                                   data = .x,
+                                                   iter = c(4,4,4,4),
+                                                   start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'briere2_1999') - 10,
+                                                   start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'briere2_1999') + 10,
+                                                   lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'briere2_1999'),
+                                                   upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'briere2_1999'),
+                                                   supp_errors = 'Y',
+                                                   convergence_count = FALSE)),
+         gaussian = purrr::map(data, ~nls_multstart(Rate~gaussian_1987(temp = Temp, rmax, topt, a),
+                                                    data = .x,
+                                                    iter = c(4,4,4),
+                                                    start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'gaussian_1987') - 10,
+                                                    start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'gaussian_1987') + 10,
+                                                    lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'gaussian_1987'),
+                                                    upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'gaussian_1987'),
+                                                    supp_errors = 'Y',
+                                                    convergence_count = FALSE)),
+         modifiedgaussian = purrr::map(data, ~nls_multstart(Rate~modifiedgaussian_2006(temp = Temp, rmax, topt, a, b),
+                                                            data = .x,
+                                                            iter = c(4,4,4,4),
+                                                            start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006') - 10,
+                                                            start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006') + 10,
+                                                            lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006'),
+                                                            upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'modifiedgaussian_2006'),
+                                                            supp_errors = 'Y',
+                                                            convergence_count = FALSE)),
+         quadratic = purrr::map(data, ~nls_multstart(Rate~quadratic_2008(temp = Temp, a, b, c),
+                                                     data = .x,
+                                                     iter = c(4,4,4),
+                                                     start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'quadratic_2008') - 0.5,
+                                                     start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'quadratic_2008') + 0.5,
+                                                     lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'quadratic_2008'),
+                                                     upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'quadratic_2008'),
+                                                     supp_errors = 'Y',
+                                                     convergence_count = FALSE)),
+         ratkowsky = purrr::map(data, ~nls_multstart(Rate~ratkowsky_1983(temp = Temp, tmin, tmax, a, b),
+                                                     data = .x,
+                                                     iter = c(4,4,4,4),
+                                                     start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'ratkowsky_1983') - 10,
+                                                     start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'ratkowsky_1983') + 10,
+                                                     lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'ratkowsky_1983'),
+                                                     upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'ratkowsky_1983'),
+                                                     supp_errors = 'Y',
+                                                     convergence_count = FALSE)),
+         spain = purrr::map(data, ~nls_multstart(Rate~spain_1982(temp = Temp, a,b,c,r0),
+                                                 data = .x,
+                                                 iter = c(4,4,4,4),
+                                                 start_lower = get_start_vals(.x$Temp, .x$Rate, model_name = 'spain_1982') - 1,
+                                                 start_upper = get_start_vals(.x$Temp, .x$Rate, model_name = 'spain_1982') + 1,
+                                                 lower = get_lower_lims(.x$Temp, .x$Rate, model_name = 'spain_1982'),
+                                                 upper = get_upper_lims(.x$Temp, .x$Rate, model_name = 'spain_1982'),
+                                                 supp_errors = 'Y', convergence_count = FALSE)))
+
+## clean up:
+# stack models
+d_stack <- select(Gene_fits, -data) %>%
+  pivot_longer(., names_to = 'model_name', values_to = 'fit', flinn:spain)
+d_stack
+
+new_preds <- Attacin_exp %>%
+  do(., data.frame(Temp = seq(min(.$Temp), max(.$Temp), length.out = 150), stringsAsFactors = FALSE))
+
+# max and min for each curve
+max_min <- group_by(Attacin_exp,Treatment)%>%
+  summarise(., min_Temp = min(Temp), max_Temp = max(Temp)) %>%
+  ungroup()
+
+#MAKE PREDS W NEW TEMPS:
+preds2 <- d_stack %>%
+  mutate(., p = map(fit, augment, newdata = new_preds)) %>%
+  unnest(p) %>%
+  merge(., max_min, by = 'Treatment') %>%
+  group_by(., Treatment) %>%
+  filter(., Temp > unique(min_Temp) & Temp < unique(max_Temp)) %>%
+  rename(., Rate = .fitted) %>%
+  ungroup()
+
+# take a random point from each model for labelling
+d_labs <- filter(preds2, Temp < 34) %>%
+  group_by(., model_name) %>%
+  sample_n(., 1) %>%
+  ungroup()
+
+#plot:
+ggplot() +
+  geom_point(aes(Temp, Rate), size=2,Attacin_exp)+
+  geom_line(aes(Temp,Rate,col = model_name),preds2) +
+  geom_label_repel(aes(Temp, Rate, label = model_name, col = model_name), 
+                   fill = 'white', nudge_y = 20, segment.size = 0.2, 
+                   segment.colour = "grey50",d_labs) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = 'left') +
+  labs(x = 'Temperature (ºC)',
+       y = 'Rate of Gene Expression',
+       title = 'Attacin Expression vs. Temp \nin Heat Killed Treatment') +
   geom_hline(aes(yintercept = 0), linetype = 2) +
   scale_color_brewer(type = 'qual', palette = 2)
 
